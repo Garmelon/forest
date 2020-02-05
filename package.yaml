@@ -1,0 +1,40 @@
+name:                forest
+version:             0.1.0.0
+license:             MIT
+author:              "Garmelon <joscha@plugh.de>"
+copyright:           "2020 Garmelon"
+
+synopsis:            A tree-based multi-user interaction thing
+description:         Please see the README on GitHub at <https://github.com/Garmelon/forest#readme>
+github:              "Garmelon/forest"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+executables:
+  forest-server:
+    main:                Main.hs
+    source-dirs:         server
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - forest
+
+  forest-client:
+    main:                Main.hs
+    source-dirs:         client
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - forest

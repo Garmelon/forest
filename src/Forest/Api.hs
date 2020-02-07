@@ -1,4 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 -- | This module contains all the types found in the API.
 
@@ -18,8 +20,10 @@ import           Control.Applicative
 import           Control.Monad
 import           Data.Aeson
 import           Data.Aeson.Types
+import           Data.Char
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Text           as T
+import           GHC.Generics
 
 {- Common -}
 
@@ -32,46 +36,21 @@ data Node = Node
   , nodeDelete   :: Bool
   , nodeReply    :: Bool
   , nodeChildren :: Map.HashMap NodeId Node
-  } deriving (Show)
+  } deriving (Show, Generic)
+
+nodeOptions :: Options
+nodeOptions = defaultOptions{fieldLabelModifier = map toLower . drop 4}
 
 instance ToJSON Node where
-  toJSON node = object
-    [ "text"     .= nodeText node
-    , "act"      .= nodeAct node
-    , "edit"     .= nodeEdit node
-    , "delete"   .= nodeDelete node
-    , "reply"    .= nodeReply node
-    , "children" .= nodeChildren node
-    ]
-
-  toEncoding node = pairs
-    (  "text"     .= nodeText node
-    <> "act"      .= nodeAct node
-    <> "edit"     .= nodeEdit node
-    <> "delete"   .= nodeDelete node
-    <> "reply"    .= nodeReply node
-    <> "children" .= nodeChildren node
-    )
+  toJSON = genericToJSON nodeOptions
+  toEncoding = genericToEncoding nodeOptions
 
 instance FromJSON Node where
-  parseJSON v = parseJSON v >>= \o -> Node
-    <$> o .: "text"
-    <*> o .: "act"
-    <*> o .: "edit"
-    <*> o .: "delete"
-    <*> o .: "reply"
-    <*> o .: "children"
+  parseJSON = genericParseJSON nodeOptions
 
 newtype Path = Path
   { pathElements :: [NodeId]
-  } deriving (Show, Eq)
-
-instance ToJSON Path where
-  toJSON = toJSON . pathElements
-  toEncoding = toEncoding . pathElements
-
-instance FromJSON Path where
-  parseJSON v = Path <$> parseJSON v
+  } deriving (Show, Eq, ToJSON, FromJSON)
 
 parsePacket :: Value -> T.Text -> (Object -> Parser a) -> Parser a
 parsePacket value packetType parser = parseJSON value >>= \o -> do

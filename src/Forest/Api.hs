@@ -30,12 +30,12 @@ import           GHC.Generics
 type NodeId = T.Text
 
 data Node = Node
-  { nodeText     :: T.Text
-  , nodeAct      :: Bool
-  , nodeEdit     :: Bool
-  , nodeDelete   :: Bool
-  , nodeReply    :: Bool
-  , nodeChildren :: Map.HashMap NodeId Node
+  { nodeText     :: !T.Text
+  , nodeAct      :: !Bool
+  , nodeEdit     :: !Bool
+  , nodeDelete   :: !Bool
+  , nodeReply    :: !Bool
+  , nodeChildren :: !(Map.HashMap NodeId Node)
   } deriving (Show, Generic)
 
 nodeOptions :: Options
@@ -61,11 +61,11 @@ parsePacket value packetType parser = parseJSON value >>= \o -> do
 {- Client -}
 
 data ClientPacket
-  = ClientHello [T.Text]
-  | ClientAct Path
-  | ClientEdit Path T.Text
-  | ClientDelete Path
-  | ClientReply Path T.Text
+  = ClientHello ![T.Text]
+  | ClientAct !Path
+  | ClientEdit !Path !T.Text
+  | ClientDelete !Path
+  | ClientReply !Path !T.Text
   deriving (Show)
 
 instance ToJSON ClientPacket where
@@ -101,8 +101,8 @@ instance FromJSON ClientPacket where
 {- Server -}
 
 data ServerPacket
-  = ServerHello [T.Text]
-  | ServerUpdate Path Node
+  = ServerHello ![T.Text]
+  | ServerUpdate !Path !Node
   deriving (Show)
 
 instance ToJSON ServerPacket where

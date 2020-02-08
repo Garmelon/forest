@@ -21,7 +21,7 @@ import           Control.Monad
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.Char
-import qualified Data.HashMap.Strict as Map
+import qualified Data.Map.Strict     as Map
 import qualified Data.Text           as T
 import           GHC.Generics
 
@@ -35,7 +35,7 @@ data Node = Node
   , nodeEdit     :: !Bool
   , nodeDelete   :: !Bool
   , nodeReply    :: !Bool
-  , nodeChildren :: !(Map.HashMap NodeId Node)
+  , nodeChildren :: !(Map.Map NodeId Node)
   } deriving (Show, Generic)
 
 nodeOptions :: Options

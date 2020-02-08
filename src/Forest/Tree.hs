@@ -5,8 +5,8 @@ module Forest.Tree
   , initialNode
   ) where
 
-import qualified Data.HashMap.Strict as Map
-import qualified Data.Text           as T
+import qualified Data.Map.Strict as Map
+import qualified Data.Text       as T
 
 import           Forest.Api
 

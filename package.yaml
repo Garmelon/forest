@@ -16,8 +16,8 @@ dependencies:
 - base >= 4.7 && < 5
 - aeson
 - async
+- containers
 - text
-- unordered-containers
 - websockets
 
 library:

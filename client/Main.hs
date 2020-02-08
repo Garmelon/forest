@@ -42,9 +42,9 @@ data ClientState = ClientState
   , csEditor :: Maybe NodeEditor
   }
 
-newClientState :: ClientState
-newClientState = ClientState
-  { csTree = newTree $ emptyNode "Connecting..." False False False False
+newClientState :: Node -> ClientState
+newClientState node = ClientState
+  { csTree = newTree node
   , csEditor = Nothing
   }
 
@@ -65,4 +65,4 @@ clientApp = App
   }
 
 main :: IO ()
-main = void $ defaultMain clientApp newClientState
+main = void $ defaultMain clientApp $ newClientState exampleNode

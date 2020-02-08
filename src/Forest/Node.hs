@@ -18,6 +18,8 @@ module Forest.Node
   , isValidPath
   , narrowPath
   , narrowSet
+  -- * Example values
+  , exampleNode
   ) where
 
 import           Control.Monad
@@ -86,3 +88,11 @@ narrowPath _ _ = Nothing
 
 narrowSet :: NodeId -> Set.Set Path -> Set.Set Path
 narrowSet x s = Set.fromList [Path ys | Path (y:ys) <- Set.toList s, x == y]
+
+{- For testing -}
+
+exampleNode :: Node
+exampleNode = Node "Tool box" False False True False $ Map.fromList
+  [ ("hammer", Node "Hammer" False True False True Map.empty)
+  , ("nail", Node "Nail" False True False False Map.empty)
+  ]

@@ -101,22 +101,22 @@ instance FromJSON ClientPacket where
 {- Server -}
 
 data ServerPacket
-  = ServerHello ![T.Text]
+  = ServerHello ![T.Text] !Node
   | ServerUpdate !Path !Node
   deriving (Show)
 
 instance ToJSON ServerPacket where
-  toJSON (ServerHello extensions) =
-    object ["type" .= ("hello" :: T.Text), "extensions" .= extensions]
+  toJSON (ServerHello extensions node) =
+    object ["type" .= ("hello" :: T.Text), "extensions" .= extensions, "node" .= node]
   toJSON (ServerUpdate path node) =
     object ["type" .= ("update" :: T.Text), "path" .= path, "node" .= node]
 
-  toEncoding (ServerHello extensions) =
-    pairs ("type" .= ("hello" :: T.Text) <> "extensions" .= extensions)
+  toEncoding (ServerHello extensions node) =
+    pairs ("type" .= ("hello" :: T.Text) <> "extensions" .= extensions <> "node" .= node)
   toEncoding (ServerUpdate path node) =
     pairs ("type" .= ("update" :: T.Text) <> "path" .= path <> "node" .= node)
 
 instance FromJSON ServerPacket where
   parseJSON v =
-    parsePacket v "hello" (\o -> ServerHello <$> o .: "extensions") <|>
+    parsePacket v "hello" (\o -> ServerHello <$> o .: "extensions" <*> o .: "node") <|>
     parsePacket v "update" (\o -> ServerUpdate <$> o .: "path" <*> o .: "node")

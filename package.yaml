@@ -16,8 +16,10 @@ dependencies:
 - base >= 4.7 && < 5
 - aeson
 - async
+- brick
 - containers
 - text
+- vty
 - websockets
 
 library:

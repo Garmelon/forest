@@ -26,7 +26,7 @@ narrowDrawState nodeId ds = ds
   }
 
 indent :: Widget n -> Widget n
-indent = (txt "| " <+>)
+indent = (txt "│ " <+>)
 
 drawSubnode :: NodeId -> DrawState -> Node -> Widget ResourceName
 drawSubnode nodeId ds node =

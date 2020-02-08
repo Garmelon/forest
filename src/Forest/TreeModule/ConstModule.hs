@@ -4,7 +4,7 @@ module Forest.TreeModule.ConstModule
   ( constModule
   ) where
 
-import           Forest.Tree
+import           Forest.Node
 import           Forest.TreeModule
 
 data ConstModule = ConstModule

@@ -1,13 +1,18 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
-module Forest.Tree
+module Forest.Node
   (
-  -- * Node-related functions
-    emptyNode
+  -- * Node
+    NodeId
+  , Node(..)
+  , emptyNode
   , initialNode
   , applyId
   , applyPath
-  -- * Path-related functions
+  -- * Path
+  , Path(..)
   , localPath
   , isLocalPath
   , isValidPath
@@ -16,12 +21,36 @@ module Forest.Tree
   ) where
 
 import           Control.Monad
+import           Data.Aeson
+import           Data.Char
 import qualified Data.Map.Strict as Map
 import           Data.Maybe
 import qualified Data.Set        as Set
 import qualified Data.Text       as T
+import           GHC.Generics
 
-import           Forest.Api
+{- Node -}
+
+type NodeId = T.Text
+
+data Node = Node
+  { nodeText     :: !T.Text
+  , nodeAct      :: !Bool
+  , nodeEdit     :: !Bool
+  , nodeDelete   :: !Bool
+  , nodeReply    :: !Bool
+  , nodeChildren :: !(Map.Map NodeId Node)
+  } deriving (Show, Generic)
+
+nodeOptions :: Options
+nodeOptions = defaultOptions{fieldLabelModifier = map toLower . drop 4}
+
+instance ToJSON Node where
+  toJSON = genericToJSON nodeOptions
+  toEncoding = genericToEncoding nodeOptions
+
+instance FromJSON Node where
+  parseJSON = genericParseJSON nodeOptions
 
 emptyNode :: T.Text -> Bool -> Bool -> Bool -> Bool -> Node
 emptyNode text edit delete reply act = Node text edit delete reply act Map.empty
@@ -34,6 +63,12 @@ applyId nodeId node = nodeChildren node Map.!? nodeId
 
 applyPath :: Path -> Node -> Maybe Node
 applyPath (Path ids) node = foldM (flip applyId) node ids
+
+{- Path -}
+
+newtype Path = Path
+  { pathElements :: [NodeId]
+  } deriving (Show, Eq, Ord, ToJSON, FromJSON)
 
 localPath :: Path
 localPath = Path []

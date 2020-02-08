@@ -3,9 +3,9 @@ module Forest.TreeModule
   , ModuleConstructor
   ) where
 
-import qualified Data.Text  as T
+import qualified Data.Text   as T
 
-import           Forest.Api
+import           Forest.Node
 
 class TreeModule a where
   edit   :: a -> Path -> T.Text -> IO ()

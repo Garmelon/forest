@@ -9,10 +9,9 @@ import           Brick
 import qualified Data.Map                   as Map
 import qualified Data.Set                   as Set
 
-import           Forest.Api
 import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
-import           Forest.Tree
+import           Forest.Node
 
 data DrawState = DrawState
   { dsEditor   :: Maybe NodeEditor

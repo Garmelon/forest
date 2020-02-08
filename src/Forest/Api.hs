@@ -1,18 +1,9 @@
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | This module contains all the types found in the API.
 
 module Forest.Api
-  (
-  -- * Common
-    NodeId
-  , Node(..)
-  , Path(..)
-  -- * Client
-  , ClientPacket(..)
-  -- * Server
+  ( ClientPacket(..)
   , ServerPacket(..)
   ) where
 
@@ -20,37 +11,9 @@ import           Control.Applicative
 import           Control.Monad
 import           Data.Aeson
 import           Data.Aeson.Types
-import           Data.Char
-import qualified Data.Map.Strict     as Map
 import qualified Data.Text           as T
-import           GHC.Generics
 
-{- Common -}
-
-type NodeId = T.Text
-
-data Node = Node
-  { nodeText     :: !T.Text
-  , nodeAct      :: !Bool
-  , nodeEdit     :: !Bool
-  , nodeDelete   :: !Bool
-  , nodeReply    :: !Bool
-  , nodeChildren :: !(Map.Map NodeId Node)
-  } deriving (Show, Generic)
-
-nodeOptions :: Options
-nodeOptions = defaultOptions{fieldLabelModifier = map toLower . drop 4}
-
-instance ToJSON Node where
-  toJSON = genericToJSON nodeOptions
-  toEncoding = genericToEncoding nodeOptions
-
-instance FromJSON Node where
-  parseJSON = genericParseJSON nodeOptions
-
-newtype Path = Path
-  { pathElements :: [NodeId]
-  } deriving (Show, Eq, Ord, ToJSON, FromJSON)
+import           Forest.Node
 
 parsePacket :: Value -> T.Text -> (Object -> Parser a) -> Parser a
 parsePacket value packetType parser = parseJSON value >>= \o -> do

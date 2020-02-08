@@ -14,7 +14,7 @@ import           Forest.Api
 import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
 import           Forest.Client.Tree
-import           Forest.Tree
+import           Forest.Node
 import           Forest.Util
 
 {- Listening for server events -}
@@ -53,7 +53,7 @@ clientDraw cs = [renderTree (csEditor cs) (csTree cs)]
 
 clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM ResourceName (Next ClientState)
 clientHandleEvent cs (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = halt cs
-clientHandleEvent cs _ = continue cs
+clientHandleEvent cs _                                         = continue cs
 
 clientApp :: App ClientState () ResourceName
 clientApp = App

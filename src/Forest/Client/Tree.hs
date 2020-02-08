@@ -11,11 +11,10 @@ module Forest.Client.Tree
 import           Brick
 import qualified Data.Set                   as Set
 
-import           Forest.Api
 import           Forest.Client.Node
 import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
-import           Forest.Tree
+import           Forest.Node
 
 data Tree = Tree
   { treeNode     :: Node

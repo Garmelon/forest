@@ -10,7 +10,7 @@ import           Control.Monad
 import qualified Network.WebSockets      as WS
 
 import           Forest.Api
-import           Forest.Tree
+import           Forest.Node
 import           Forest.TreeModule
 import           Forest.Util
 

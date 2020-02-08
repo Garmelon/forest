@@ -5,6 +5,7 @@ module Forest.Server
   , serverApp
   ) where
 
+import Control.Monad
 import           Control.Concurrent.Async
 import           Control.Concurrent.Chan
 import           Data.Aeson
@@ -52,22 +53,23 @@ sendUpdatesThread conn nodeChan _ = do
 {- Main server application that receives and processes client packets -}
 
 receivePackets :: TreeModule a => WS.Connection -> a -> IO ()
-receivePackets conn treeModule = do
+receivePackets conn treeModule = forever $ do
   maybePacket <- receivePacket conn
   case maybePacket of
-    Just packet -> case packet of
-      ClientEdit path text  -> edit treeModule path text  >> receivePackets conn treeModule
-      ClientDelete path     -> delete treeModule path     >> receivePackets conn treeModule
-      ClientReply path text -> reply treeModule path text >> receivePackets conn treeModule
-      ClientAct path        -> act treeModule path        >> receivePackets conn treeModule
-      ClientHello _         -> closeWithErrorMessage conn "Invalid packet: Hello can only be sent once"
-    Nothing -> pure () -- Connection already closed by receivePacket
+    Nothing -> pure ()
+    Just packet ->
+      case packet of
+        ClientEdit path text -> edit treeModule path text
+        ClientDelete path -> delete treeModule path
+        ClientReply path text -> reply treeModule path text
+        ClientAct path -> act treeModule path
+        ClientHello _ -> closeWithErrorMessage conn "Invalid packet: Hello can only be sent once"
 
-serverApp :: TreeModule a => ModuleConstructor a -> WS.ServerApp
-serverApp constructor pendingConnection = do
+serverApp :: TreeModule a => Int -> ModuleConstructor a -> WS.ServerApp
+serverApp pingDelay constructor pendingConnection = do
   conn <- WS.acceptRequest pendingConnection
   chan <- newChan
-  WS.withPingThread conn 10 (pure ()) $ do
+  WS.withPingThread conn pingDelay (pure ()) $ do
     firstPacket <- receivePacket conn
     case firstPacket of
       Nothing -> pure ()

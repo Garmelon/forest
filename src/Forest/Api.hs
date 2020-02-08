@@ -50,7 +50,7 @@ instance FromJSON Node where
 
 newtype Path = Path
   { pathElements :: [NodeId]
-  } deriving (Show, Eq, ToJSON, FromJSON)
+  } deriving (Show, Eq, Ord, ToJSON, FromJSON)
 
 parsePacket :: Value -> T.Text -> (Object -> Parser a) -> Parser a
 parsePacket value packetType parser = parseJSON value >>= \o -> do

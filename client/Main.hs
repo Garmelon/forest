@@ -52,35 +52,71 @@ newClientState node = ClientState
   , csEditor = Nothing
   }
 
+type ClientM a = EventM ResourceName a
+
+{- Normal actions -}
+
+quitKeys :: [Vty.Key]
+quitKeys = [Vty.KEsc, Vty.KChar 'q']
+
+foldKeys :: [Vty.Key]
+foldKeys = [Vty.KChar '\t']
+
+foldAction :: ClientState -> ClientM (Next ClientState)
+foldAction cs = continue cs{csTree = toggleFold $ csTree cs}
+
+upKeys :: [Vty.Key]
+upKeys = [Vty.KUp, Vty.KChar 'k']
+
+upAction :: ClientState -> ClientM (Next ClientState)
+upAction cs = continue cs{csTree = moveUp $ csTree cs}
+
+downKeys :: [Vty.Key]
+downKeys = [Vty.KDown, Vty.KChar 'j']
+
+downAction :: ClientState -> ClientM (Next ClientState)
+downAction cs = continue cs{csTree = moveDown $ csTree cs}
+
+onKeyWithoutEditor
+  :: ClientState
+  -> Vty.Event
+  -> EventM ResourceName (Next ClientState)
+onKeyWithoutEditor cs (Vty.EvKey k _)
+  | k `elem` quitKeys = halt cs
+  | k `elem` foldKeys = foldAction cs
+  | k `elem` upKeys   = upAction cs
+  | k `elem` downKeys = downAction cs
+onKeyWithoutEditor cs _ = continue cs
+
+{- Editor actions -}
+
+editorQuitKeys :: [Vty.Key]
+editorQuitKeys = [Vty.KEsc]
+
+onKeyWithEditor
+  :: NodeEditor
+  -> ClientState
+  -> Vty.Event
+  -> EventM ResourceName (Next ClientState)
+onKeyWithEditor _ cs (Vty.EvKey k _)
+  | k `elem` editorQuitKeys = continue cs{csEditor = Nothing}
+onKeyWithEditor ed cs ev = do
+  newEd <- handleNodeEditorEvent ev ed
+  continue cs{csEditor = Just newEd}
+
+{- Constructing the client app -}
+
 clientDraw :: ClientState -> [Widget ResourceName]
 clientDraw cs = [joinBorders $ withBorderStyle unicode $ tree <+> debug]
   where
     tree = borderWithLabel (txt "Tree") $ hLimit 50 $ renderTree boxDrawingBranching (csEditor cs) (csTree cs) <=> fill ' '
     debug = borderWithLabel (txt "Debug") $ txtWrap (T.pack $ show $ csTree cs) <=> fill ' '
 
-isQuitEvent :: BrickEvent a b -> Bool
-isQuitEvent (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = True
-isQuitEvent _                                         = False
-
-isFocusDownEvent :: BrickEvent a b -> Bool
-isFocusDownEvent (VtyEvent (Vty.EvKey (Vty.KChar 'j') [])) = True
-isFocusDownEvent _                                         = False
-
-isFocusUpEvent :: BrickEvent a b -> Bool
-isFocusUpEvent (VtyEvent (Vty.EvKey (Vty.KChar 'k') [])) = True
-isFocusUpEvent _                                         = False
-
-isToggleFoldEvent :: BrickEvent a b -> Bool
-isToggleFoldEvent (VtyEvent (Vty.EvKey (Vty.KChar '\t') [])) = True
-isToggleFoldEvent _                                          = False
-
 clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM ResourceName (Next ClientState)
-clientHandleEvent cs e
-  | isQuitEvent e       = halt cs
-  | isFocusUpEvent e    = continue cs{csTree = moveUp $ csTree cs}
-  | isFocusDownEvent e  = continue cs{csTree = moveDown $ csTree cs}
-  | isToggleFoldEvent e = continue cs{csTree = toggleFold $ csTree cs}
-  | otherwise           = continue cs
+clientHandleEvent cs (VtyEvent ev) = case csEditor cs of
+  Nothing -> onKeyWithoutEditor cs ev
+  Just ed -> onKeyWithEditor ed cs ev
+clientHandleEvent cs _ = continue cs
 
 clientAttrMap :: AttrMap
 clientAttrMap = attrMap Vty.defAttr

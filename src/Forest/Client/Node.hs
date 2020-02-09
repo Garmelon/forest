@@ -2,7 +2,7 @@
 
 module Forest.Client.Node
   ( DrawState(..)
-  , renderNode
+  , nodeToTree
   ) where
 
 import           Brick
@@ -11,6 +11,7 @@ import qualified Data.Set                   as Set
 
 import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
+import           Forest.Client.WidgetTree
 import           Forest.Node
 
 data DrawState = DrawState
@@ -19,44 +20,39 @@ data DrawState = DrawState
   , dsUnfolded :: Set.Set Path
   }
 
+isFocused :: DrawState -> Bool
+isFocused ds = (isLocalPath <$> dsFocused ds) == Just True
+
 narrowDrawState :: NodeId -> DrawState -> DrawState
 narrowDrawState nodeId ds = ds
   { dsUnfolded = narrowSet nodeId $ dsUnfolded ds
   , dsFocused = narrowPath nodeId =<< dsFocused ds
   }
 
-indent :: Widget n -> Widget n
-indent = (txt "│ " <+>)
+nodeToWidget :: Bool -> Node -> Widget ResourceName
+nodeToWidget focused node =
+  let nodeWidget = txt $ nodeText node
+      expandStyle = if null (nodeChildren node) then "noexpand" else "expand"
+      focusStyle = if focused then "focus" else "nofocus"
+  in  withAttr focusStyle $ withAttr expandStyle nodeWidget
 
-drawSubnode :: NodeId -> DrawState -> Node -> Widget ResourceName
-drawSubnode nodeId ds node =
+subnodeToTree :: NodeId -> DrawState -> Node -> WidgetTree ResourceName
+subnodeToTree  nodeId ds node =
   let newDs = narrowDrawState nodeId ds
-  in  indent $ renderNode newDs node
+  in  nodeToTree newDs node
 
-drawSubnodes :: DrawState -> Map.Map NodeId Node -> Widget ResourceName
-drawSubnodes ds nodes = vBox $
-  map (\(nodeId, node) -> drawSubnode nodeId ds node) $
+subnodesToTrees :: DrawState -> Map.Map NodeId Node -> [WidgetTree ResourceName]
+subnodesToTrees ds nodes =
+  map (\(nodeId, node) -> subnodeToTree nodeId ds node) $
   Map.toAscList nodes
 
-isFocused :: DrawState -> Bool
-isFocused ds = (isLocalPath <$> dsFocused ds) == Just True
-
-drawNodeWithoutEditor :: DrawState -> Node -> Widget ResourceName
-drawNodeWithoutEditor ds node
-  | isFocused ds = withAttr "focused" nodeWidget <=> subnodesWidget
-  | otherwise = nodeWidget <=> subnodesWidget
+nodeToTree :: DrawState -> Node -> WidgetTree ResourceName
+nodeToTree ds node = case dsEditor ds of
+  Nothing -> WidgetTree nodeWidget subnodeWidgets
+  Just ed
+    | asReply ed -> WidgetTree nodeWidget (subnodeWidgets ++ [WidgetTree (renderNodeEditor ed) []])
+    | otherwise  -> WidgetTree (renderNodeEditor ed) subnodeWidgets
   where
-    nodeWidget = txt $ nodeText node
-    subnodesWidget = drawSubnodes ds $ nodeChildren node
-
-drawNodeWithEditor :: NodeEditor -> DrawState -> Node -> Widget ResourceName
-drawNodeWithEditor ed ds node
-  | asReply ed = drawNodeWithoutEditor ds node <=> indent (renderNodeEditor ed)
-  | otherwise = renderNodeEditor ed <=> drawSubnodes ds (nodeChildren node)
-
-renderNode :: DrawState -> Node -> Widget ResourceName
-renderNode ds node
-  | isFocused ds = case dsEditor ds of
-      Nothing -> drawNodeWithoutEditor ds node
-      Just ed -> drawNodeWithEditor ed ds node
-  | otherwise = drawNodeWithoutEditor ds node
+    focused = isFocused ds
+    nodeWidget = nodeToWidget focused node
+    subnodeWidgets = subnodesToTrees ds $ nodeChildren node

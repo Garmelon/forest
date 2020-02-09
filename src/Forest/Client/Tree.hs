@@ -14,6 +14,7 @@ import qualified Data.Set                   as Set
 import           Forest.Client.Node
 import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
+import           Forest.Client.WidgetTree
 import           Forest.Node
 
 data Tree = Tree
@@ -29,12 +30,13 @@ newTree node = Tree
   , treeUnfolded = Set.empty
   }
 
-renderTree :: Maybe NodeEditor -> Tree -> Widget ResourceName
-renderTree maybeEditor tree = renderNode drawState $ treeNode tree
+renderTree :: IndentOptions -> Maybe NodeEditor -> Tree -> Widget ResourceName
+renderTree opts maybeEditor tree =
+  renderWidgetTree opts $ nodeToTree drawState $ treeNode tree
   where
     drawState = DrawState
-      { dsEditor   = maybeEditor
-      , dsFocused  = Just $ treeFocused tree
+      { dsEditor = maybeEditor
+      , dsFocused = Just $ treeFocused tree
       , dsUnfolded = treeUnfolded tree
       }
 

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Main where
 
 import           Brick
@@ -14,6 +12,7 @@ import           Forest.Api
 import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
 import           Forest.Client.Tree
+import           Forest.Client.WidgetTree
 import           Forest.Node
 import           Forest.Util
 
@@ -49,7 +48,7 @@ newClientState node = ClientState
   }
 
 clientDraw :: ClientState -> [Widget ResourceName]
-clientDraw cs = [renderTree (csEditor cs) (csTree cs)]
+clientDraw cs = [renderTree boxDrawingBranching (csEditor cs) (csTree cs)]
 
 clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM ResourceName (Next ClientState)
 clientHandleEvent cs (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = halt cs

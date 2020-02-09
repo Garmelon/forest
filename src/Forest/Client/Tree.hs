@@ -89,6 +89,11 @@ getCurrent :: Tree -> Node
 -- We rely on the invariant that the focused node always exists
 getCurrent tree = fromJust $ applyPath (treeFocused tree) (treeNode tree)
 
+-- Warning: 'firstSibling' and 'lastSibling' do their job in a similar, but
+-- slightly different way. This can be seen in the return types: 'firstSibling'
+-- never returns the original node, 'lastSibling' does if it doesn't have any
+-- children.
+
 firstSibling :: Node -> Maybe Path
 firstSibling node = case mapChildren (,) node of
   ((nid,_):_) -> Just $ Path [nid]
@@ -110,22 +115,20 @@ surroundingSiblings node middle = do
 -- | Attempt to find the path of the node that is above the input path.
 findPrevNode :: Node -> Path -> Maybe Path
 findPrevNode _ (Path []) = Nothing
-findPrevNode node (Path [x]) = do
-  (maybePrev, _, _) <- surroundingSiblings node x
-  case maybePrev of
-    Nothing             -> pure mempty
-    Just (prevId, prev) -> pure $ Path [prevId] <> lastSibling prev
 findPrevNode node (Path (x:xs)) = do
-  childNode <- applyId x node
-  prevPath <- findPrevNode childNode $ Path xs
-  pure $ Path [x] <> prevPath
+  (maybePrev, childNode, _) <- surroundingSiblings node x
+  case findPrevNode childNode (Path xs) of
+    Just path -> pure $ Path [x] <> path
+    Nothing -> case maybePrev of
+      Nothing             -> pure mempty
+      Just (prevId, prev) -> pure $ Path [prevId] <> lastSibling prev
 
 -- | Attempt to find the path of the node that is below the input path.
 findNextNode :: Node -> Path -> Maybe Path
 findNextNode node (Path []) = firstSibling node
 findNextNode node (Path (x:xs)) = do
   (_, childNode, maybeNext) <- surroundingSiblings node x
-  case findNextNode childNode $ Path xs of
+  case findNextNode childNode (Path xs) of
     Just path -> pure $ Path [x] <> path
     Nothing -> do
       (nextId, _) <- maybeNext
@@ -175,13 +178,6 @@ applyFolds unfolded node
   where
     foldedChildren = Map.fromList $ mapChildren applyFoldsToChild node
     applyFoldsToChild nid n = (nid, applyFolds (narrowSet nid unfolded) n)
-
--- | Apply folds to a whole 'Tree' (see 'applyFolds').
-withFolds :: Tree -> Tree
-withFolds tree = newTree
-  (applyFolds (treeUnfolded tree) (treeNode tree))
-  (treeFocused tree)
-  (treeUnfolded tree)
 
 exampleTree :: Tree
 exampleTree = newTree exampleNode (Path ["hammer"]) Set.empty

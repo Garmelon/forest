@@ -25,6 +25,15 @@ isFocused ds = (isLocalPath <$> dsFocused ds) == Just True
 isFolded :: DrawState -> Bool
 isFolded ds = not $ localPath `Set.member` dsUnfolded ds
 
+decorateNode :: Node -> Widget n -> Widget n
+decorateNode node widget =
+  let e = if nodeEdit node then "e" else "-"
+      d = if nodeDelete node then "d" else "-"
+      r = if nodeReply node then "r" else "-"
+      a = if nodeAct node then "a" else "-"
+      flags = "(" <> e <> d <> r <> a <> ")"
+  in  widget <+> txt " " <+> withDefAttr "flags" (txt flags)
+
 narrowDrawState :: NodeId -> DrawState -> DrawState
 narrowDrawState nodeId ds = ds
   { dsUnfolded = narrowSet nodeId $ dsUnfolded ds
@@ -52,9 +61,9 @@ nodeToTree ds node = case dsEditor ds of
   Just ed
     | not focused -> WidgetTree nodeWidget subnodeWidgets
     | asReply ed -> WidgetTree nodeWidget (subnodeWidgets ++ [WidgetTree (renderNodeEditor ed) []])
-    | otherwise  -> WidgetTree (renderNodeEditor ed) subnodeWidgets
+    | otherwise  -> WidgetTree (decorateNode node $ renderNodeEditor ed) subnodeWidgets
   where
     focused = isFocused ds
     folded = isFolded ds
-    nodeWidget = nodeToWidget focused node
+    nodeWidget = decorateNode node $ nodeToWidget focused node
     subnodeWidgets = if folded then [] else subnodesToTrees ds node

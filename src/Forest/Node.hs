@@ -7,12 +7,13 @@ module Forest.Node
   -- * Node
     NodeId
   , Node(..)
-  , hasChildren
   , emptyNode
   , initialNode
+  , hasChildren
+  , mapChildren
   , applyId
   , applyPath
-  , mapChildren
+  , replaceAt
   -- * Path
   , Path(..)
   , localPath
@@ -56,14 +57,17 @@ instance ToJSON Node where
 instance FromJSON Node where
   parseJSON = genericParseJSON nodeOptions
 
-hasChildren :: Node -> Bool
-hasChildren = not . Map.null . nodeChildren
-
 emptyNode :: T.Text -> Bool -> Bool -> Bool -> Bool -> Node
 emptyNode text edit delete reply act = Node text edit delete reply act Map.empty
 
 initialNode :: Node
 initialNode = emptyNode "Loading..." False False False False
+
+hasChildren :: Node -> Bool
+hasChildren = not . Map.null . nodeChildren
+
+mapChildren :: (NodeId -> Node -> a) -> Node -> [a]
+mapChildren f node = map (uncurry f) $ Map.toAscList $ nodeChildren node
 
 applyId :: NodeId -> Node -> Maybe Node
 applyId nodeId node = nodeChildren node Map.!? nodeId
@@ -71,8 +75,11 @@ applyId nodeId node = nodeChildren node Map.!? nodeId
 applyPath :: Path -> Node -> Maybe Node
 applyPath (Path ids) node = foldM (flip applyId) node ids
 
-mapChildren :: (NodeId -> Node -> a) -> Node -> [a]
-mapChildren f node = map (uncurry f) $ Map.toAscList $ nodeChildren node
+replaceAt :: Node -> Path -> Node -> Node
+replaceAt childNode (Path []) _ = childNode
+replaceAt childNode (Path (x:xs)) node =
+  let newChildren = Map.adjust (replaceAt childNode $ Path xs) x $ nodeChildren node
+  in  node{nodeChildren = newChildren}
 
 {- Path -}
 

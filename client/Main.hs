@@ -8,6 +8,7 @@ import           Brick.Widgets.Border.Style
 import           Control.Concurrent.Chan
 import           Control.Exception
 import           Control.Monad
+import           Data.Maybe
 import qualified Data.Set                   as Set
 import qualified Data.Text                  as T
 import qualified Graphics.Vty               as Vty
@@ -132,8 +133,8 @@ onKeyWithEditor ed cs ev = do
 clientDraw :: ClientState -> [Widget ResourceName]
 clientDraw cs = [joinBorders $ withBorderStyle unicode $ tree <+> debug]
   where
-    tree = borderWithLabel (txt "Tree") $ hLimit 50 $ renderTree boxDrawingBranching (csEditor cs) (csTree cs) <=> fill ' '
-    debug = borderWithLabel (txt "Debug") $ txtWrap (T.pack $ show $ csTree cs) <=> fill ' '
+    tree = borderWithLabel (txt "Tree") $ renderTree boxDrawingBranching (csEditor cs) (csTree cs)
+    debug = borderWithLabel (txt "Debug") $ maybe (txt "No editor") (vBox . map txt . getCurrentText) (csEditor cs)
 
 clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM ResourceName (Next ClientState)
 clientHandleEvent cs (VtyEvent ev) = case csEditor cs of

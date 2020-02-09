@@ -2,6 +2,7 @@
 
 module Forest.Client.NodeEditor
   ( NodeEditor
+  , getCurrentText
   , asReply
   , editNode
   , replyToNode
@@ -22,28 +23,37 @@ data NodeEditor = NodeEditor
   , neReply  :: Bool
   } deriving (Show)
 
+getCurrentText :: NodeEditor -> [T.Text]
+getCurrentText = getEditContents . neEditor
+
 asReply :: NodeEditor -> Bool
 asReply = neReply
 
 editNode :: T.Text -> NodeEditor
 editNode text = NodeEditor
-  { neEditor = applyEdit gotoEOL $ editorText RnEditor (Just 1) text
+  { neEditor = applyEdit gotoEOL $ editorText RnEditor Nothing text
   , neReply = False
   }
 
 replyToNode :: NodeEditor
 replyToNode = NodeEditor
-  { neEditor = editorText RnEditor (Just 1) ""
+  { neEditor = editorText RnEditor Nothing ""
   , neReply = True
   }
 
+edit :: (TextZipper T.Text -> TextZipper T.Text) -> NodeEditor -> EventM ResourceName NodeEditor
+edit z ne = pure $ ne{neEditor = applyEdit z $ neEditor ne}
+
 handleNodeEditorEvent :: Vty.Event -> NodeEditor -> EventM ResourceName NodeEditor
-handleNodeEditorEvent event es = do
-  newEditor <- handleEditorEvent event $ neEditor es
-  pure es{neEditor = newEditor}
+handleNodeEditorEvent (Vty.EvKey Vty.KHome _) ne = edit gotoBOL ne
+handleNodeEditorEvent (Vty.EvKey Vty.KEnd _) ne = edit gotoEOL ne
+handleNodeEditorEvent event ne = do
+  newEditor <- handleEditorEvent event $ neEditor ne
+  pure ne{neEditor = newEditor}
 
 renderNodeEditor :: NodeEditor -> Widget ResourceName
-renderNodeEditor es = renderEditor renderFunc True $ neEditor es
+renderNodeEditor ne = vLimit height $ renderEditor renderFunc True $ neEditor ne
   where
+    height = length $ getCurrentText ne
     renderFunc :: [T.Text] -> Widget ResourceName
-    renderFunc = vBox . map txt
+    renderFunc = vBox . map (\t -> if T.null t then txt " " else txt t)

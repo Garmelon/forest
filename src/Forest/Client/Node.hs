@@ -6,7 +6,6 @@ module Forest.Client.Node
   ) where
 
 import           Brick
-import qualified Data.Map                   as Map
 import qualified Data.Set                   as Set
 
 import           Forest.Client.NodeEditor
@@ -23,6 +22,9 @@ data DrawState = DrawState
 isFocused :: DrawState -> Bool
 isFocused ds = (isLocalPath <$> dsFocused ds) == Just True
 
+isFolded :: DrawState -> Bool
+isFolded ds = not $ localPath `Set.member` dsUnfolded ds
+
 narrowDrawState :: NodeId -> DrawState -> DrawState
 narrowDrawState nodeId ds = ds
   { dsUnfolded = narrowSet nodeId $ dsUnfolded ds
@@ -36,15 +38,13 @@ nodeToWidget focused node =
       focusStyle = if focused then "focus" else "nofocus"
   in  withDefAttr focusStyle $ withDefAttr expandStyle nodeWidget
 
-subnodeToTree :: NodeId -> DrawState -> Node -> WidgetTree ResourceName
-subnodeToTree  nodeId ds node =
+subnodeToTree :: DrawState -> NodeId -> Node -> WidgetTree ResourceName
+subnodeToTree ds nodeId node =
   let newDs = narrowDrawState nodeId ds
   in  nodeToTree newDs node
 
-subnodesToTrees :: DrawState -> Map.Map NodeId Node -> [WidgetTree ResourceName]
-subnodesToTrees ds nodes =
-  map (\(nodeId, node) -> subnodeToTree nodeId ds node) $
-  Map.toAscList nodes
+subnodesToTrees :: DrawState -> Node -> [WidgetTree ResourceName]
+subnodesToTrees ds = mapChildren (subnodeToTree ds)
 
 nodeToTree :: DrawState -> Node -> WidgetTree ResourceName
 nodeToTree ds node = case dsEditor ds of
@@ -55,5 +55,6 @@ nodeToTree ds node = case dsEditor ds of
     | otherwise  -> WidgetTree (renderNodeEditor ed) subnodeWidgets
   where
     focused = isFocused ds
+    folded = isFolded ds
     nodeWidget = nodeToWidget focused node
-    subnodeWidgets = subnodesToTrees ds $ nodeChildren node
+    subnodeWidgets = if folded then [] else subnodesToTrees ds node

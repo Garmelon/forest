@@ -131,10 +131,9 @@ onKeyWithEditor ed cs ev = do
 {- Constructing the client app -}
 
 clientDraw :: ClientState -> [Widget ResourceName]
-clientDraw cs = [joinBorders $ withBorderStyle unicode $ tree <+> debug]
+clientDraw cs = [padTop (Pad 1) $ padLeft (Pad 2) tree]
   where
-    tree = borderWithLabel (txt "Tree") $ renderTree boxDrawingBranching (csEditor cs) (csTree cs)
-    debug = borderWithLabel (txt "Debug") $ maybe (txt "No editor") (vBox . map txt . getCurrentText) (csEditor cs)
+    tree = renderTree boxDrawingBranching (csEditor cs) (csTree cs)
 
 clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM ResourceName (Next ClientState)
 clientHandleEvent cs (VtyEvent ev) = case csEditor cs of

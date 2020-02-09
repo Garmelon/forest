@@ -34,7 +34,7 @@ narrowDrawState nodeId ds = ds
 nodeToWidget :: Bool -> Node -> Widget ResourceName
 nodeToWidget focused node =
   let nodeWidget = txt $ nodeText node
-      expandStyle = if null (nodeChildren node) then "noexpand" else "expand"
+      expandStyle = if hasChildren node then "expand" else "noexpand"
       focusStyle = if focused then "focus" else "nofocus"
   in  withDefAttr focusStyle $ withDefAttr expandStyle nodeWidget
 

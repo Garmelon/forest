@@ -7,6 +7,7 @@ module Forest.Node
   -- * Node
     NodeId
   , Node(..)
+  , hasChildren
   , emptyNode
   , initialNode
   , applyId
@@ -54,6 +55,9 @@ instance ToJSON Node where
 
 instance FromJSON Node where
   parseJSON = genericParseJSON nodeOptions
+
+hasChildren :: Node -> Bool
+hasChildren = not . Map.null . nodeChildren
 
 emptyNode :: T.Text -> Bool -> Bool -> Bool -> Bool -> Node
 emptyNode text edit delete reply act = Node text edit delete reply act Map.empty

@@ -57,7 +57,12 @@ newTree node focused unfolded = Tree
   , treeUnfolded = safeUnfolded
   }
   where
-    safeUnfolded = Set.filter (isValidPath node) unfolded
+    isValidFold :: Node -> Path -> Bool
+    isValidFold n p = case applyPath p n of
+      Nothing        -> False
+      Just childNode -> hasChildren childNode
+
+    safeUnfolded = Set.filter (isValidFold node) unfolded
     safeFocused = findNearestFocus (applyFolds safeUnfolded node) focused
 
 -- | Switch out a tree's node, keeping as much of the focus and folding
@@ -137,14 +142,13 @@ isCurrentFolded tree = not $ treeFocused tree `Set.member` treeUnfolded tree
 
 -- | Fold the currently focused node. Does nothing if it is already folded.
 foldCurrent :: Tree -> Tree
-foldCurrent tree@Tree {treeFocused = f, treeUnfolded = u} =
-  let foldedTree = withFolds tree {treeUnfolded = Set.delete f u}
-  in  foldedTree {treeNode = treeNode tree}
+foldCurrent Tree{treeNode=n, treeFocused=f, treeUnfolded=u} =
+  newTree n f $ Set.delete f u
 
 -- | Unfold the currently focused node. Does nothing if it is already unfolded.
 unfoldCurrent :: Tree -> Tree
-unfoldCurrent tree@Tree {treeFocused = f, treeUnfolded = u} =
-  tree {treeUnfolded = Set.insert f u}
+unfoldCurrent Tree{treeNode=n, treeFocused=f, treeUnfolded=u} =
+  newTree n f $ Set.insert f u
 
 -- | Toggle whether the currently focused node is folded.
 toggleFold :: Tree -> Tree

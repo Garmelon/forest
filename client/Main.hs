@@ -51,7 +51,11 @@ newClientState node = ClientState
   }
 
 clientDraw :: ClientState -> [Widget ResourceName]
-clientDraw cs = [renderTree boxDrawingBranching (csEditor cs) (csTree cs)]
+clientDraw cs =
+  [ renderTree boxDrawingBranching (csEditor cs) (csTree cs) <=>
+    txt "--------------------------------------------------------------------------------" <=>
+    txtWrap (T.pack $ show $ csTree cs)
+  ]
 
 isQuitEvent :: BrickEvent a b -> Bool
 isQuitEvent (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = True

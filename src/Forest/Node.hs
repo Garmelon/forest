@@ -11,6 +11,7 @@ module Forest.Node
   , initialNode
   , applyId
   , applyPath
+  , mapChildren
   -- * Path
   , Path(..)
   , localPath
@@ -65,6 +66,9 @@ applyId nodeId node = nodeChildren node Map.!? nodeId
 
 applyPath :: Path -> Node -> Maybe Node
 applyPath (Path ids) node = foldM (flip applyId) node ids
+
+mapChildren :: (NodeId -> Node -> a) -> Node -> [a]
+mapChildren f node = map (uncurry f) $ Map.toAscList $ nodeChildren node
 
 {- Path -}
 

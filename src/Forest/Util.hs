@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Forest.Util
-  ( withThread
+  ( findPrev
+  , findNext
+  , withThread
   , sendPacket
   , receivePacket
   , closeWithErrorMessage
@@ -9,8 +11,15 @@ module Forest.Util
 
 import           Control.Concurrent.Async
 import           Data.Aeson
+import           Data.List
 import qualified Data.Text                as T
 import qualified Network.WebSockets       as WS
+
+findPrev :: (a -> Bool) -> [a] -> Maybe a
+findPrev f as = fst <$> find (f . snd) (zip as $ tail as)
+
+findNext :: (a -> Bool) -> [a] -> Maybe a
+findNext f as = snd <$> find (f . fst) (zip as $ tail as)
 
 withThread :: IO () -> IO () -> IO ()
 withThread thread main = withAsync thread $ const main

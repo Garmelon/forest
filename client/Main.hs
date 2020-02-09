@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import           Brick
@@ -54,13 +56,19 @@ clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM Resourc
 clientHandleEvent cs (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = halt cs
 clientHandleEvent cs _                                         = continue cs
 
+clientAttrMap :: AttrMap
+clientAttrMap = attrMap Vty.defAttr
+  [ ("expand", Vty.currentAttr `Vty.withStyle` Vty.bold `Vty.withForeColor` Vty.yellow)
+  , ("focus", Vty.currentAttr `Vty.withBackColor` Vty.blue)
+  ]
+
 clientApp :: App ClientState () ResourceName
 clientApp = App
   { appDraw = clientDraw
   , appChooseCursor = showFirstCursor
   , appHandleEvent = clientHandleEvent
   , appStartEvent = pure
-  , appAttrMap = const $ attrMap Vty.defAttr []
+  , appAttrMap = const clientAttrMap
   }
 
 main :: IO ()

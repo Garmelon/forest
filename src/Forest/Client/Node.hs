@@ -34,7 +34,7 @@ nodeToWidget focused node =
   let nodeWidget = txt $ nodeText node
       expandStyle = if null (nodeChildren node) then "noexpand" else "expand"
       focusStyle = if focused then "focus" else "nofocus"
-  in  withAttr focusStyle $ withAttr expandStyle nodeWidget
+  in  withDefAttr focusStyle $ withDefAttr expandStyle nodeWidget
 
 subnodeToTree :: NodeId -> DrawState -> Node -> WidgetTree ResourceName
 subnodeToTree  nodeId ds node =
@@ -50,6 +50,7 @@ nodeToTree :: DrawState -> Node -> WidgetTree ResourceName
 nodeToTree ds node = case dsEditor ds of
   Nothing -> WidgetTree nodeWidget subnodeWidgets
   Just ed
+    | not focused -> WidgetTree nodeWidget subnodeWidgets
     | asReply ed -> WidgetTree nodeWidget (subnodeWidgets ++ [WidgetTree (renderNodeEditor ed) []])
     | otherwise  -> WidgetTree (renderNodeEditor ed) subnodeWidgets
   where

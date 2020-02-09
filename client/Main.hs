@@ -3,6 +3,8 @@
 module Main where
 
 import           Brick
+import           Brick.Widgets.Border
+import           Brick.Widgets.Border.Style
 import           Control.Concurrent.Chan
 import           Control.Exception
 import           Control.Monad
@@ -51,11 +53,10 @@ newClientState node = ClientState
   }
 
 clientDraw :: ClientState -> [Widget ResourceName]
-clientDraw cs =
-  [ renderTree boxDrawingBranching (csEditor cs) (csTree cs) <=>
-    txt "--------------------------------------------------------------------------------" <=>
-    txtWrap (T.pack $ show $ csTree cs)
-  ]
+clientDraw cs = [joinBorders $ withBorderStyle unicode $ debug <=> tree]
+  where
+    tree = borderWithLabel (txt "Tree") $ renderTree boxDrawingBranching (csEditor cs) (csTree cs)
+    debug = borderWithLabel (txt "Debug") $ hLimit 80 $ txtWrap $ T.pack $ show $ csTree cs
 
 isQuitEvent :: BrickEvent a b -> Bool
 isQuitEvent (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = True
@@ -71,7 +72,7 @@ isFocusUpEvent _                                         = False
 
 isToggleFoldEvent :: BrickEvent a b -> Bool
 isToggleFoldEvent (VtyEvent (Vty.EvKey (Vty.KChar '\t') [])) = True
-isToggleFoldEvent _                                         = False
+isToggleFoldEvent _                                          = False
 
 clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM ResourceName (Next ClientState)
 clientHandleEvent cs e

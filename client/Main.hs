@@ -53,10 +53,10 @@ newClientState node = ClientState
   }
 
 clientDraw :: ClientState -> [Widget ResourceName]
-clientDraw cs = [joinBorders $ withBorderStyle unicode $ debug <=> tree]
+clientDraw cs = [joinBorders $ withBorderStyle unicode $ tree <+> debug]
   where
     tree = borderWithLabel (txt "Tree") $ renderTree boxDrawingBranching (csEditor cs) (csTree cs)
-    debug = borderWithLabel (txt "Debug") $ hLimit 80 $ txtWrap $ T.pack $ show $ csTree cs
+    debug = borderWithLabel (txt "Debug") $ txtWrap $ T.pack $ show $ csTree cs
 
 isQuitEvent :: BrickEvent a b -> Bool
 isQuitEvent (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = True

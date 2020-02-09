@@ -12,6 +12,7 @@ module Forest.Client.NodeEditor
 import           Brick
 import           Brick.Widgets.Edit
 import qualified Data.Text                  as T
+import           Data.Text.Zipper
 import qualified Graphics.Vty               as Vty
 
 import           Forest.Client.ResourceName
@@ -26,7 +27,7 @@ asReply = neReply
 
 editNode :: T.Text -> NodeEditor
 editNode text = NodeEditor
-  { neEditor = editorText RnEditor (Just 1) text
+  { neEditor = applyEdit gotoEOL $ editorText RnEditor (Just 1) text
   , neReply = False
   }
 

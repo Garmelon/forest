@@ -19,6 +19,7 @@ dependencies:
 - brick
 - containers
 - text
+- text-zipper
 - transformers
 - vty
 - websockets

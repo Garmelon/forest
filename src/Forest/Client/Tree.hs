@@ -19,6 +19,7 @@ module Forest.Client.Tree
   ) where
 
 import           Brick
+import           Data.List
 import qualified Data.Map                   as Map
 import           Data.Maybe
 import qualified Data.Set                   as Set
@@ -28,7 +29,6 @@ import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
 import           Forest.Client.WidgetTree
 import           Forest.Node
-import           Forest.Util
 
 data Tree = Tree
   { treeNode     :: Node
@@ -62,7 +62,8 @@ newTree node focused unfolded = Tree
       Nothing        -> False
       Just childNode -> hasChildren childNode
 
-    safeUnfolded = Set.filter (isValidFold node) unfolded
+    foldedNode = applyFolds unfolded node
+    safeUnfolded = Set.filter (isValidFold foldedNode) unfolded
     safeFocused = findNearestFocus (applyFolds safeUnfolded node) focused
 
 -- | Switch out a tree's node, keeping as much of the focus and folding
@@ -88,51 +89,61 @@ getCurrent :: Tree -> Node
 -- We rely on the invariant that the focused node always exists
 getCurrent tree = fromJust $ applyPath (treeFocused tree) (treeNode tree)
 
+firstSibling :: Node -> Maybe Path
+firstSibling node = case mapChildren (,) node of
+  ((nid,_):_) -> Just $ Path [nid]
+  _           -> Nothing
+
+lastSibling :: Node -> Path
+lastSibling node = case reverse $ mapChildren (,) node of
+  ((nid,n):_) -> Path [nid] <> lastSibling n
+  _           -> Path []
+
+surroundingSiblings :: Node -> NodeId -> Maybe (Maybe (NodeId, Node), Node, Maybe (NodeId, Node))
+surroundingSiblings node middle = do
+  let children = mapChildren (,) node
+      maybeChildren = [Nothing] ++ map Just children ++ [Nothing]
+      triples  = zip3 maybeChildren children (drop 2 maybeChildren)
+  (a, (_, b), c) <- find (\(_, (nodeId, _), _) -> nodeId == middle) triples
+  pure (a, b, c)
+
 -- | Attempt to find the path of the node that is above the input path.
 findPrevNode :: Node -> Path -> Maybe Path
 findPrevNode _ (Path []) = Nothing
-findPrevNode node (Path [x]) =
-  let childIds = Map.keys $ nodeChildren node
-      prevId = findPrev (==x) childIds
-  in  case prevId of
-    Nothing     -> Just $ Path []
-    Just nodeId -> Just $ Path [nodeId]
-findPrevNode node (Path (x:xs)) = case applyId x node of
-  Nothing -> Just $ Path [] -- This should not happen normally
-  Just childNode -> case findPrevNode childNode (Path xs) of
-    Nothing   -> Just $ Path []
-    Just path -> Just path
+findPrevNode node (Path [x]) = do
+  (maybePrev, _, _) <- surroundingSiblings node x
+  case maybePrev of
+    Nothing             -> pure mempty
+    Just (prevId, prev) -> pure $ Path [prevId] <> lastSibling prev
+findPrevNode node (Path (x:xs)) = do
+  childNode <- applyId x node
+  prevPath <- findPrevNode childNode $ Path xs
+  pure $ Path [x] <> prevPath
 
 -- | Attempt to find the path of the node that is below the input path.
 findNextNode :: Node -> Path -> Maybe Path
-findNextNode node (Path []) = case Map.keys $ nodeChildren node of
-  (x:_) -> Just $ Path [x]
-  _     -> Nothing
-findNextNode node (Path [x]) =
-  let childIds = Map.keys $ nodeChildren node
-      nextId = findNext (==x) childIds
-  in  case nextId of
-    Nothing     -> Nothing
-    Just nodeId -> Just $ Path [nodeId]
-findNextNode node (Path (x:xs)) = case applyId x node of
-  Nothing -> Just $ Path [] -- This should not happen normally
-  Just childNode -> case findPrevNode childNode (Path xs) of
-    Just path -> Just path
-    Nothing   -> findNextNode node (Path [x])
+findNextNode node (Path []) = firstSibling node
+findNextNode node (Path (x:xs)) = do
+  (_, childNode, maybeNext) <- surroundingSiblings node x
+  case findNextNode childNode $ Path xs of
+    Just path -> pure $ Path [x] <> path
+    Nothing -> do
+      (nextId, _) <- maybeNext
+      pure $ Path [nextId]
 
 -- | Move the focus upward by one node, if possible. Otherwise, do nothing.
 moveUp :: Tree -> Tree
-moveUp tree@Tree{treeFocused=focused} = tree{treeFocused = fromMaybe focused prevNode}
+moveUp Tree{treeNode=n, treeFocused=f, treeUnfolded=u} =
+  newTree n (fromMaybe f prevNode) u
   where
-    folded = applyFolds (treeUnfolded tree) (treeNode tree)
-    prevNode = findPrevNode folded focused
+    prevNode = findPrevNode (applyFolds u n) f
 
 -- | Move the focus downward by one node, if possible. Otherwise, do nothing.
 moveDown :: Tree -> Tree
-moveDown tree@Tree{treeFocused=focused} = tree{treeFocused = fromMaybe focused nextNode}
+moveDown Tree{treeNode=n, treeFocused=f, treeUnfolded=u} =
+  newTree n (fromMaybe f nextNode) u
   where
-    folded = applyFolds (treeUnfolded tree) (treeNode tree)
-    nextNode = findNextNode folded focused
+    nextNode = findNextNode (applyFolds u n) f
 
 {- Folding -}
 

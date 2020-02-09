@@ -6,6 +6,7 @@ import           Brick
 import           Control.Concurrent.Chan
 import           Control.Exception
 import           Control.Monad
+import qualified Data.Set                   as Set
 import qualified Data.Text                  as T
 import qualified Graphics.Vty               as Vty
 import qualified Network.WebSockets         as WS
@@ -45,16 +46,36 @@ data ClientState = ClientState
 
 newClientState :: Node -> ClientState
 newClientState node = ClientState
-  { csTree = newTree node
+  { csTree = newTree node localPath Set.empty
   , csEditor = Nothing
   }
 
 clientDraw :: ClientState -> [Widget ResourceName]
 clientDraw cs = [renderTree boxDrawingBranching (csEditor cs) (csTree cs)]
 
+isQuitEvent :: BrickEvent a b -> Bool
+isQuitEvent (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = True
+isQuitEvent _                                         = False
+
+isFocusDownEvent :: BrickEvent a b -> Bool
+isFocusDownEvent (VtyEvent (Vty.EvKey (Vty.KChar 'j') [])) = True
+isFocusDownEvent _                                         = False
+
+isFocusUpEvent :: BrickEvent a b -> Bool
+isFocusUpEvent (VtyEvent (Vty.EvKey (Vty.KChar 'k') [])) = True
+isFocusUpEvent _                                         = False
+
+isToggleFoldEvent :: BrickEvent a b -> Bool
+isToggleFoldEvent (VtyEvent (Vty.EvKey (Vty.KChar '\t') [])) = True
+isToggleFoldEvent _                                         = False
+
 clientHandleEvent :: ClientState -> BrickEvent ResourceName () -> EventM ResourceName (Next ClientState)
-clientHandleEvent cs (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = halt cs
-clientHandleEvent cs _                                         = continue cs
+clientHandleEvent cs e
+  | isQuitEvent e       = halt cs
+  | isFocusUpEvent e    = continue cs{csTree = moveUp $ csTree cs}
+  | isFocusDownEvent e  = continue cs{csTree = moveDown $ csTree cs}
+  | isToggleFoldEvent e = continue cs{csTree = toggleFold $ csTree cs}
+  | otherwise           = continue cs
 
 clientAttrMap :: AttrMap
 clientAttrMap = attrMap Vty.defAttr
@@ -72,4 +93,6 @@ clientApp = App
   }
 
 main :: IO ()
-main = void $ defaultMain clientApp $ newClientState exampleNode
+main = void $ defaultMain clientApp testState
+  where
+    testState = ClientState {csTree = exampleTree, csEditor = Nothing}

@@ -25,8 +25,16 @@ isFocused ds = (isLocalPath <$> dsFocused ds) == Just True
 isFolded :: DrawState -> Bool
 isFolded ds = not $ localPath `Set.member` dsUnfolded ds
 
-decorateNode :: Node -> Widget n -> Widget n
-decorateNode node widget =
+decorateExpand :: Bool -> Widget n -> Widget n
+decorateExpand True widget  = withDefAttr "expand" widget
+decorateExpand False widget = withDefAttr "noexpand" widget
+
+decorateFocus :: Bool -> Widget n -> Widget n
+decorateFocus True widget  = withDefAttr "focus" widget
+decorateFocus False widget = withDefAttr "nofocus" widget
+
+decorateFlags :: Node -> Widget n -> Widget n
+decorateFlags node widget =
   let e = if nodeEdit node then "e" else "-"
       d = if nodeDelete node then "d" else "-"
       r = if nodeReply node then "r" else "-"
@@ -40,12 +48,8 @@ narrowDrawState nodeId ds = ds
   , dsFocused = narrowPath nodeId =<< dsFocused ds
   }
 
-nodeToWidget :: Bool -> Node -> Widget ResourceName
-nodeToWidget focused node =
-  let nodeWidget = txt $ nodeText node
-      expandStyle = if hasChildren node then "expand" else "noexpand"
-      focusStyle = if focused then "focus" else "nofocus"
-  in  withDefAttr focusStyle $ withDefAttr expandStyle nodeWidget
+nodeToWidget :: Node -> Widget ResourceName
+nodeToWidget  node = txt $ nodeText node
 
 subnodeToTree :: DrawState -> NodeId -> Node -> WidgetTree ResourceName
 subnodeToTree ds nodeId node =
@@ -61,9 +65,13 @@ nodeToTree ds node = case dsEditor ds of
   Just ed
     | not focused -> WidgetTree nodeWidget subnodeWidgets
     | asReply ed -> WidgetTree nodeWidget (subnodeWidgets ++ [WidgetTree (renderNodeEditor ed) []])
-    | otherwise  -> WidgetTree (decorateNode node $ renderNodeEditor ed) subnodeWidgets
+    | otherwise  -> WidgetTree (expand $ renderNodeEditor ed) subnodeWidgets
   where
     focused = isFocused ds
     folded = isFolded ds
-    nodeWidget = decorateNode node $ nodeToWidget focused node
+    expand = decorateExpand $ hasChildren node
+    nodeWidget =
+      decorateFlags node $
+      decorateFocus focused $
+      expand $ nodeToWidget node
     subnodeWidgets = if folded then [] else subnodesToTrees ds node

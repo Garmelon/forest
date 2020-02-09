@@ -77,15 +77,38 @@ downKeys = [Vty.KDown, Vty.KChar 'j']
 downAction :: ClientState -> ClientM (Next ClientState)
 downAction cs = continue cs{csTree = moveDown $ csTree cs}
 
+editKeys :: [Vty.Key]
+editKeys = [Vty.KChar 'e']
+
+editAction :: ClientState -> ClientM (Next ClientState)
+editAction cs =
+  let node = getCurrent $ csTree cs
+      editor = editNode $ nodeText node
+  in  continue cs{csEditor = Just editor}
+
+deleteKeys :: [Vty.Key]
+deleteKeys = [Vty.KChar 'e']
+
+replyKeys :: [Vty.Key]
+replyKeys = [Vty.KChar 'r']
+
+replyAction :: ClientState -> ClientM (Next ClientState)
+replyAction cs = continue cs{csEditor = Just replyToNode}
+
+actKeys :: [Vty.Key]
+actKeys = [Vty.KEnter, Vty.KChar 'a']
+
 onKeyWithoutEditor
   :: ClientState
   -> Vty.Event
   -> EventM ResourceName (Next ClientState)
 onKeyWithoutEditor cs (Vty.EvKey k _)
-  | k `elem` quitKeys = halt cs
-  | k `elem` foldKeys = foldAction cs
-  | k `elem` upKeys   = upAction cs
-  | k `elem` downKeys = downAction cs
+  | k `elem` quitKeys  = halt cs
+  | k `elem` foldKeys  = foldAction cs
+  | k `elem` upKeys    = upAction cs
+  | k `elem` downKeys  = downAction cs
+  | k `elem` editKeys  = editAction cs
+  | k `elem` replyKeys = replyAction cs
 onKeyWithoutEditor cs _ = continue cs
 
 {- Editor actions -}

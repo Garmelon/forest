@@ -114,19 +114,19 @@ onKeyWithoutEditor cs _ = continue cs
 
 {- Editor actions -}
 
-editorQuitKeys :: [Vty.Key]
-editorQuitKeys = [Vty.KEsc]
-
-onKeyWithEditor
-  :: NodeEditor
-  -> ClientState
-  -> Vty.Event
-  -> EventM ResourceName (Next ClientState)
-onKeyWithEditor _ cs (Vty.EvKey k _)
-  | k `elem` editorQuitKeys = continue cs{csEditor = Nothing}
-onKeyWithEditor ed cs ev = do
+updateEditor :: NodeEditor -> ClientState -> Vty.Event -> ClientM (Next ClientState)
+updateEditor ed cs ev = do
   newEd <- handleNodeEditorEvent ev ed
   continue cs{csEditor = Just newEd}
+
+onKeyWithEditor :: NodeEditor -> ClientState -> Vty.Event -> ClientM (Next ClientState)
+-- Abort editing with Escape
+onKeyWithEditor _ cs (Vty.EvKey Vty.KEsc _) = continue cs{csEditor = Nothing}
+-- Insert a newline on C-n
+onKeyWithEditor ed cs (Vty.EvKey (Vty.KChar 'n') m)
+  | Vty.MCtrl `elem` m = updateEditor ed cs $ Vty.EvKey Vty.KEnter []
+-- Forward all other events as usual
+onKeyWithEditor ed cs ev = updateEditor ed cs ev
 
 {- Constructing the client app -}
 

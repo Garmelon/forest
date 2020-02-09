@@ -19,7 +19,6 @@ module Forest.Client.Tree
   ) where
 
 import           Brick
-import           Data.List
 import qualified Data.Map                   as Map
 import           Data.Maybe
 import qualified Data.Set                   as Set
@@ -29,6 +28,7 @@ import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
 import           Forest.Client.WidgetTree
 import           Forest.Node
+import           Forest.Util
 
 data Tree = Tree
   { treeNode     :: Node
@@ -89,64 +89,25 @@ getCurrent :: Tree -> Node
 -- We rely on the invariant that the focused node always exists
 getCurrent tree = fromJust $ applyPath (treeFocused tree) (treeNode tree)
 
--- Warning: 'firstSibling' and 'lastSibling' do their job in a similar, but
--- slightly different way. This can be seen in the return types: 'firstSibling'
--- never returns the original node, 'lastSibling' does if it doesn't have any
--- children.
+flatten :: Node -> [Path]
+flatten node =
+  let flattenedChildren =
+        mapChildren (\nid n -> map (Path [nid] <>) $ flatten n) node
+   in Path [] : concat flattenedChildren
 
-firstSibling :: Node -> Maybe Path
-firstSibling node = case mapChildren (,) node of
-  ((nid,_):_) -> Just $ Path [nid]
-  _           -> Nothing
-
-lastSibling :: Node -> Path
-lastSibling node = case reverse $ mapChildren (,) node of
-  ((nid,n):_) -> Path [nid] <> lastSibling n
-  _           -> Path []
-
-surroundingSiblings :: Node -> NodeId -> Maybe (Maybe (NodeId, Node), Node, Maybe (NodeId, Node))
-surroundingSiblings node middle = do
-  let children = mapChildren (,) node
-      maybeChildren = [Nothing] ++ map Just children ++ [Nothing]
-      triples  = zip3 maybeChildren children (drop 2 maybeChildren)
-  (a, (_, b), c) <- find (\(_, (nodeId, _), _) -> nodeId == middle) triples
-  pure (a, b, c)
-
--- | Attempt to find the path of the node that is above the input path.
-findPrevNode :: Node -> Path -> Maybe Path
-findPrevNode _ (Path []) = Nothing
-findPrevNode node (Path (x:xs)) = do
-  (maybePrev, childNode, _) <- surroundingSiblings node x
-  case findPrevNode childNode (Path xs) of
-    Just path -> pure $ Path [x] <> path
-    Nothing -> case maybePrev of
-      Nothing             -> pure mempty
-      Just (prevId, prev) -> pure $ Path [prevId] <> lastSibling prev
-
--- | Attempt to find the path of the node that is below the input path.
-findNextNode :: Node -> Path -> Maybe Path
-findNextNode node (Path []) = firstSibling node
-findNextNode node (Path (x:xs)) = do
-  (_, childNode, maybeNext) <- surroundingSiblings node x
-  case findNextNode childNode (Path xs) of
-    Just path -> pure $ Path [x] <> path
-    Nothing -> do
-      (nextId, _) <- maybeNext
-      pure $ Path [nextId]
+moveWith :: ((Path -> Bool) -> [Path] -> Maybe Path) -> Tree -> Tree
+moveWith finder Tree{treeNode=n, treeFocused=f, treeUnfolded=u} =
+  let flattened = flatten $ applyFolds u n
+      target = fromMaybe f $ finder (==f) flattened
+  in  newTree n target u
 
 -- | Move the focus upward by one node, if possible. Otherwise, do nothing.
 moveUp :: Tree -> Tree
-moveUp Tree{treeNode=n, treeFocused=f, treeUnfolded=u} =
-  newTree n (fromMaybe f prevNode) u
-  where
-    prevNode = findPrevNode (applyFolds u n) f
+moveUp = moveWith findPrev
 
 -- | Move the focus downward by one node, if possible. Otherwise, do nothing.
 moveDown :: Tree -> Tree
-moveDown Tree{treeNode=n, treeFocused=f, treeUnfolded=u} =
-  newTree n (fromMaybe f nextNode) u
-  where
-    nextNode = findNextNode (applyFolds u n) f
+moveDown = moveWith findNext
 
 {- Folding -}
 

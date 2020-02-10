@@ -4,6 +4,9 @@ module Forest.TreeModule.ConstModule
   ( constModule
   ) where
 
+import           Control.Concurrent
+import           Control.Monad
+
 import           Forest.Node
 import           Forest.TreeModule
 
@@ -17,5 +20,7 @@ instance TreeModule ConstModule where
 
 constModule :: ModuleConstructor ConstModule
 constModule sendNode continue = do
-  sendNode (emptyNode "Loaded ConstModule" False False False False)
+  void $ forkIO $ do
+    threadDelay $ 1000 * 1000 -- One second
+    sendNode (emptyNode "Loaded ConstModule" False False False False)
   continue ConstModule

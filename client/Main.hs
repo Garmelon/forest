@@ -158,6 +158,4 @@ clientApp = App
   }
 
 main :: IO ()
-main = void $ defaultMain clientApp testState
-  where
-    testState = ClientState {csTree = exampleTree, csEditor = Nothing}
+main = void $ defaultMain clientApp $ newClientState exampleNode

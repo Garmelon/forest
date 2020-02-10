@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Forest.Client.Tree
   ( Tree
   , newTree
@@ -14,8 +12,6 @@ module Forest.Client.Tree
   , foldCurrent
   , unfoldCurrent
   , toggleFold
-  -- * Example values
-  , exampleTree
   ) where
 
 import           Brick
@@ -139,6 +135,3 @@ applyFolds unfolded node
   where
     foldedChildren = Map.fromList $ mapChildren applyFoldsToChild node
     applyFoldsToChild nid n = (nid, applyFolds (narrowSet nid unfolded) n)
-
-exampleTree :: Tree
-exampleTree = newTree exampleNode (Path ["hammer"]) Set.empty

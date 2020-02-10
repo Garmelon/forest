@@ -20,6 +20,7 @@ sendUpdatesThread :: WS.Connection -> Chan Node -> Node -> IO ()
 sendUpdatesThread conn nodeChan _ = do
   newNode <- readChan nodeChan
   -- TODO Don't send the whole node every time
+  putStrLn $ "Sending full node update with " ++ show newNode
   sendPacket conn $ ServerUpdate (Path []) newNode
   sendUpdatesThread conn nodeChan newNode
 
@@ -29,10 +30,18 @@ receivePackets :: TreeModule a => WS.Connection -> a -> IO ()
 receivePackets conn treeModule = forever $ do
   packet <- receivePacket conn
   case packet of
-    ClientEdit path text -> edit treeModule path text
-    ClientDelete path -> delete treeModule path
-    ClientReply path text -> reply treeModule path text
-    ClientAct path -> act treeModule path
+    ClientEdit path text -> do
+      putStrLn $ "Editing " ++ show path ++ " to " ++ show text
+      edit treeModule path text
+    ClientDelete path -> do
+      putStrLn $ "Deleting " ++ show path
+      delete treeModule path
+    ClientReply path text -> do
+      putStrLn $ "Replying to " ++ show path ++ " with " ++ show text
+      reply treeModule path text
+    ClientAct path -> do
+      putStrLn $ "Acting upon " ++ show path
+      act treeModule path
     ClientHello _ -> closeWithErrorMessage conn "Invalid packet: Hello can only be sent once"
 
 serverApp :: TreeModule a => Int -> ModuleConstructor a -> WS.ServerApp
@@ -43,7 +52,10 @@ serverApp pingDelay constructor pendingConnection = do
     firstPacket <- receivePacket conn
     case firstPacket of
       ClientHello _ -> do
+        putStrLn $ "Sending hello reply with " ++ show initialNode
         sendPacket conn $ ServerHello [] initialNode
         withThread (sendUpdatesThread conn chan initialNode) $
           constructor (writeChan chan) $ receivePackets conn
       _ -> closeWithErrorMessage conn "Invalid packet: Expected a hello packet"
+  where
+    initialNode = emptyNode "Loading ..." False False False False

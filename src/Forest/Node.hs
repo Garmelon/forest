@@ -8,7 +8,6 @@ module Forest.Node
     NodeId
   , Node(..)
   , emptyNode
-  , initialNode
   , hasChildren
   , mapChildren
   , applyId
@@ -59,9 +58,6 @@ instance FromJSON Node where
 
 emptyNode :: T.Text -> Bool -> Bool -> Bool -> Bool -> Node
 emptyNode text edit delete reply act = Node text edit delete reply act Map.empty
-
-initialNode :: Node
-initialNode = emptyNode "Loading..." False False False False
 
 hasChildren :: Node -> Bool
 hasChildren = not . Map.null . nodeChildren

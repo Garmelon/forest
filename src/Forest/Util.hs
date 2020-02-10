@@ -7,9 +7,11 @@ module Forest.Util
   , sendPacket
   , receivePacket
   , closeWithErrorMessage
+  , waitForCloseException
   ) where
 
 import           Control.Concurrent.Async
+import           Control.Monad
 import           Data.Aeson
 import           Data.List
 import qualified Data.Text                as T
@@ -27,9 +29,6 @@ withThread thread main = withAsync thread $ const main
 sendPacket :: ToJSON a => WS.Connection -> a -> IO ()
 sendPacket conn packet = WS.sendTextData conn $ encode packet
 
-closeWithErrorMessage :: WS.Connection -> T.Text -> IO ()
-closeWithErrorMessage conn = WS.sendCloseCode conn 1003
-
 receivePacket :: FromJSON a => WS.Connection -> IO (Maybe a)
 receivePacket conn = do
   dataMessage <- WS.receiveDataMessage conn
@@ -43,3 +42,9 @@ receivePacket conn = do
     closeOnErrorMessage (Right a) = pure $ Just a
     closeOnErrorMessage (Left errorMsg) =
       Nothing <$ closeWithErrorMessage conn errorMsg
+
+closeWithErrorMessage :: WS.Connection -> T.Text -> IO ()
+closeWithErrorMessage conn = WS.sendCloseCode conn 1003
+
+waitForCloseException :: WS.Connection -> IO ()
+waitForCloseException conn = forever $ void $ WS.receiveDataMessage conn

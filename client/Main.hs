@@ -3,12 +3,9 @@
 module Main where
 
 import           Brick
-import           Brick.Widgets.Border
-import           Brick.Widgets.Border.Style
 import           Control.Concurrent.Chan
 import           Control.Exception
 import           Control.Monad
-import           Data.Maybe
 import qualified Data.Set                   as Set
 import qualified Data.Text                  as T
 import qualified Graphics.Vty               as Vty
@@ -26,19 +23,38 @@ import           Forest.Util
 
 data Event = EventNode Node | EventConnectionClosed T.Text
 
-wsClientApp :: Chan Event -> WS.ClientApp ()
-wsClientApp eventChan conn = handle handleConnectionException $ forever $ do
+sendCloseEvent :: Chan Event -> WS.ConnectionException -> IO ()
+sendCloseEvent eventChan e = writeChan eventChan $ EventConnectionClosed $ T.pack $ show e
+
+receiveUpdates :: Chan Event -> Node -> WS.Connection -> IO ()
+receiveUpdates eventChan node conn = handle (sendCloseEvent eventChan) $ do
   maybePacket <- receivePacket conn
   case maybePacket of
-    Nothing -> pure ()
+    -- Wait for ws exception since 'receivePacket' should have already closed
+    -- the connection.
+    Nothing -> waitForCloseException conn
     Just packet -> case packet of
-      ServerHello _ node  -> writeChan eventChan (EventNode node)
-      -- TODO properly insert node into existing tree
-      ServerUpdate _ node -> writeChan eventChan (EventNode node)
-  where
-    handleConnectionException :: WS.ConnectionException -> IO ()
-    handleConnectionException e =
-      writeChan eventChan $ EventConnectionClosed $ T.pack $ show e
+      ServerUpdate path subnode -> do
+        let newNode = replaceAt subnode path node
+        writeChan eventChan $ EventNode newNode
+        receiveUpdates eventChan newNode conn
+      _ -> do
+        closeWithErrorMessage conn "Invalid packet: Expected update"
+        waitForCloseException conn
+
+wsClientApp :: Chan Event -> WS.ClientApp ()
+wsClientApp eventChan conn = handle (sendCloseEvent eventChan) $ do
+  maybePacket <- receivePacket conn
+  case maybePacket of
+    -- Wait for ws exception since 'receivePacket' should have already closed
+    -- the connection.
+    Nothing -> waitForCloseException conn
+    Just (ServerHello _ node) -> do
+      writeChan eventChan $ EventNode node
+      receiveUpdates eventChan node conn
+    _ -> do
+      closeWithErrorMessage conn "Invalid packet: Expected hello"
+      waitForCloseException conn
 
 {- Brick client application-}
 

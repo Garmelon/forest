@@ -5,9 +5,8 @@ module Forest.Util
   , findNext
   , withThread
   , sendPacket
-  , receivePacket
   , closeWithErrorMessage
-  , waitForCloseException
+  , receivePacket
   ) where
 
 import           Control.Concurrent.Async
@@ -29,7 +28,14 @@ withThread thread main = withAsync thread $ const main
 sendPacket :: ToJSON a => WS.Connection -> a -> IO ()
 sendPacket conn packet = WS.sendTextData conn $ encode packet
 
-receivePacket :: FromJSON a => WS.Connection -> IO (Maybe a)
+waitForCloseException :: WS.Connection -> IO a
+waitForCloseException conn = forever $ void $ WS.receiveDataMessage conn
+
+closeWithErrorMessage :: WS.Connection -> T.Text -> IO a
+closeWithErrorMessage conn text =
+  WS.sendCloseCode conn 1003 text >> waitForCloseException conn
+
+receivePacket :: FromJSON a => WS.Connection -> IO a
 receivePacket conn = do
   dataMessage <- WS.receiveDataMessage conn
   closeOnErrorMessage $ case dataMessage of
@@ -38,13 +44,6 @@ receivePacket conn = do
       Left errorMsg -> Left $ "Invalid packet: " <> T.pack errorMsg
       Right packet  -> Right packet
   where
-    closeOnErrorMessage :: Either T.Text a -> IO (Maybe a)
-    closeOnErrorMessage (Right a) = pure $ Just a
-    closeOnErrorMessage (Left errorMsg) =
-      Nothing <$ closeWithErrorMessage conn errorMsg
-
-closeWithErrorMessage :: WS.Connection -> T.Text -> IO ()
-closeWithErrorMessage conn = WS.sendCloseCode conn 1003
-
-waitForCloseException :: WS.Connection -> IO ()
-waitForCloseException conn = forever $ void $ WS.receiveDataMessage conn
+    closeOnErrorMessage :: Either T.Text a -> IO a
+    closeOnErrorMessage (Right a)       = pure a
+    closeOnErrorMessage (Left errorMsg) = closeWithErrorMessage conn errorMsg

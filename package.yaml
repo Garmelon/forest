@@ -24,6 +24,7 @@ dependencies:
 - transformers
 - vty
 - websockets
+- wuss
 
 library:
   source-dirs: src

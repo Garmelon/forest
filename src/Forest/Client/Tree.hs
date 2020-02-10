@@ -1,7 +1,7 @@
 module Forest.Client.Tree
   ( Tree
   , newTree
-  , switchNode
+  , replaceNode
   , renderTree
   -- * Focused element
   , getCurrent
@@ -64,8 +64,8 @@ newTree node focused unfolded = Tree
 
 -- | Switch out a tree's node, keeping as much of the focus and folding
 -- information as the type's invariants allow.
-switchNode :: Node -> Tree -> Tree
-switchNode node tree = newTree node (treeFocused tree) (treeUnfolded tree)
+replaceNode :: Node -> Tree -> Tree
+replaceNode node tree = newTree node (treeFocused tree) (treeUnfolded tree)
 
 -- | Render a 'Tree' into a widget.
 renderTree :: IndentOptions -> Maybe NodeEditor -> Tree -> Widget ResourceName

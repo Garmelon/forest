@@ -5,6 +5,7 @@ module Forest.Client.Tree
   , renderTree
   -- * Focused element
   , getCurrent
+  , getCurrentPath
   , moveUp
   , moveDown
   -- * Folding
@@ -84,6 +85,10 @@ renderTree opts maybeEditor tree =
 getCurrent :: Tree -> Node
 -- We rely on the invariant that the focused node always exists
 getCurrent tree = fromJust $ applyPath (treeFocused tree) (treeNode tree)
+
+-- | Get the path of the currently focused node.
+getCurrentPath :: Tree -> Path
+getCurrentPath = treeFocused
 
 flatten :: Node -> [Path]
 flatten node =

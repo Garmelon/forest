@@ -3,6 +3,7 @@
 module Main where
 
 import           Brick
+import           Control.Monad.IO.Class
 import           Brick.BChan
 import           Control.Exception
 import           Control.Monad
@@ -55,20 +56,34 @@ upAction cs = continue cs{csTree = moveUp $ csTree cs}
 downAction :: ClientState -> ClientM (Next ClientState)
 downAction cs = continue cs{csTree = moveDown $ csTree cs}
 
+withCurrent
+  :: (ClientState -> Node -> Path -> ClientM (Next ClientState))
+  -> ClientState
+  -> ClientM (Next ClientState)
+withCurrent f cs = f cs (getCurrent tree) (getCurrentPath tree)
+  where
+    tree = csTree cs
+
 editAction :: ClientState -> ClientM (Next ClientState)
-editAction cs =
-  let node = getCurrent $ csTree cs
-      editor = editNode $ nodeText node
-  in  continue cs{csEditor = Just editor}
+editAction = withCurrent $ \cs node _ -> do
+  let editor = editNode $ nodeText node
+  continue $ if nodeEdit node then cs{csEditor = Just editor} else cs
 
 deleteAction :: ClientState -> ClientM (Next ClientState)
-deleteAction cs = continue cs -- TODO implement
+deleteAction = withCurrent $ \cs node path -> do
+  when (nodeDelete node) $
+    liftIO $ sendPacket (csConn cs) $ ClientDelete path
+  continue cs
 
 replyAction :: ClientState -> ClientM (Next ClientState)
-replyAction cs = continue cs{csEditor = Just replyToNode}
+replyAction = withCurrent $ \cs node _ ->
+  continue $ if nodeReply node then cs{csEditor = Just replyToNode} else cs
 
 actAction :: ClientState -> ClientM (Next ClientState)
-actAction cs = continue cs -- TODO implement
+actAction = withCurrent $ \cs node path -> do
+  when (nodeAct node) $
+    liftIO $ sendPacket (csConn cs) $ ClientAct path
+  continue cs
 
 onKeyWithoutEditor :: ClientState -> Vty.Event -> EventM ResourceName (Next ClientState)
 onKeyWithoutEditor cs (Vty.EvKey k _)
@@ -81,14 +96,14 @@ onKeyWithoutEditor cs (Vty.EvKey k _)
   | k `elem` replyKeys  = replyAction cs
   | k `elem` actKeys    = actAction cs
   where
-    quitKeys   = [Vty.KEsc, Vty.KChar 'q']
+    quitKeys   = [Vty.KChar 'q', Vty.KEsc]
     foldKeys   = [Vty.KChar '\t']
-    upKeys     = [Vty.KUp, Vty.KChar 'k']
-    downKeys   = [Vty.KDown, Vty.KChar 'j']
+    upKeys     = [Vty.KChar 'k', Vty.KUp]
+    downKeys   = [Vty.KChar 'j', Vty.KDown]
     editKeys   = [Vty.KChar 'e']
-    deleteKeys = [Vty.KChar 'e']
+    deleteKeys = [Vty.KChar 'd']
     replyKeys  = [Vty.KChar 'r']
-    actKeys    = [Vty.KEnter, Vty.KChar 'a']
+    actKeys    = [Vty.KChar 'a', Vty.KChar ' ', Vty.KEnter]
 onKeyWithoutEditor cs _ = continue cs
 
 {- Actions in edit mode -}
@@ -98,7 +113,16 @@ updateEditor ed cs ev = do
   newEd <- handleNodeEditorEvent ev ed
   continue cs{csEditor = Just newEd}
 
+finishEditing :: NodeEditor -> ClientState -> ClientM (Next ClientState)
+finishEditing ed = withCurrent $ \cs _ path -> do
+  let text = T.intercalate "\n" $ getCurrentText ed
+  liftIO $ sendPacket (csConn cs) $
+    if asReply ed then ClientReply path text else ClientEdit path text
+  continue cs{csEditor = Nothing}
+
 onKeyWithEditor :: NodeEditor -> ClientState -> Vty.Event -> ClientM (Next ClientState)
+-- Finish editing normally
+onKeyWithEditor ed cs (Vty.EvKey Vty.KEnter _) = finishEditing ed cs
 -- Abort editing with Escape
 onKeyWithEditor _ cs (Vty.EvKey Vty.KEsc _) = continue cs{csEditor = Nothing}
 -- Insert a newline on C-n

@@ -18,6 +18,7 @@ dependencies:
 - async
 - brick
 - containers
+- optparse-applicative
 - text
 - text-zipper
 - transformers

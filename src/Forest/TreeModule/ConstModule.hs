@@ -22,5 +22,5 @@ constModule :: ModuleConstructor ConstModule
 constModule sendNode continue = do
   void $ forkIO $ do
     threadDelay $ 1000 * 1000 -- One second
-    sendNode (emptyNode "Loaded ConstModule" False False False False)
+    sendNode (emptyNode "Loaded ConstModule" True True True True)
   continue ConstModule

@@ -213,11 +213,16 @@ runCorrectClient opts app
 main :: IO ()
 main = do
   opts <- execParser clientOptionsParserInfo
+  putStrLn "Connecting to server"
   runCorrectClient opts $ \conn -> do
+    putStrLn "Performing initialization ritual"
     node <- performInitialContact conn
     chan <- newBChan 100
     let appState = newClientState chan node conn
+    putStrLn "Starting WS thread"
     withThread (receiveUpdates chan node conn) $ do
+      putStrLn "Starting UI"
       let vtyBuilder = Vty.mkVty Vty.defaultConfig
       initialVty <- vtyBuilder
       void $ customMain initialVty vtyBuilder (Just chan) clientApp appState
+  putStrLn "Connection closed"

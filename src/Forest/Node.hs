@@ -7,7 +7,7 @@ module Forest.Node
     NodeId
   , Node(..)
   , newNode
-  , emptyNode
+  , txtNode
   , hasChildren
   , mapChildren
   , applyId
@@ -66,8 +66,8 @@ newNode flags text children =
       pairedChildren = zip (map formatId [0..]) children
   in  Node text edit delete reply act $ Map.fromList pairedChildren
 
-emptyNode :: String -> T.Text -> Node
-emptyNode flags text = newNode flags text []
+txtNode :: String -> T.Text -> Node
+txtNode flags text = newNode flags text []
 
 hasChildren :: Node -> Bool
 hasChildren = not . Map.null . nodeChildren

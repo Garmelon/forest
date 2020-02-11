@@ -19,4 +19,4 @@ options = WS.defaultServerOptions
 main :: IO ()
 main = do
   putStrLn "Starting server"
-  WS.runServerWithOptions options $ serverApp pingDelay constModule
+  WS.runServerWithOptions options $ serverApp pingDelay $ constModule projectDescriptionNode

@@ -18,11 +18,11 @@ import           Forest.Util
 
 sendUpdatesThread :: WS.Connection -> Chan Node -> Node -> IO ()
 sendUpdatesThread conn nodeChan _ = do
-  newNode <- readChan nodeChan
+  node' <- readChan nodeChan
   -- TODO Don't send the whole node every time
-  putStrLn $ "Sending full node update with " ++ show newNode
-  sendPacket conn $ ServerUpdate (Path []) newNode
-  sendUpdatesThread conn nodeChan newNode
+  putStrLn $ "Sending full node update with " ++ show node'
+  sendPacket conn $ ServerUpdate (Path []) node'
+  sendUpdatesThread conn nodeChan node'
 
 {- Main server application that receives and processes client packets -}
 
@@ -58,4 +58,4 @@ serverApp pingDelay constructor pendingConnection = do
           constructor (writeChan chan) $ receivePackets conn
       _ -> closeWithErrorMessage conn "Invalid packet: Expected a hello packet"
   where
-    initialNode = emptyNode "Loading ..." False False False False
+    initialNode = emptyNode "" "Loading ..."

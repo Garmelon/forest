@@ -192,9 +192,9 @@ receiveUpdates eventChan node conn = handle (sendCloseEvent eventChan) $ do
   packet <- receivePacket conn
   case packet of
     ServerUpdate path subnode -> do
-      let newNode = replaceAt subnode path node
-      writeBChan eventChan $ EventNode newNode
-      receiveUpdates eventChan newNode conn -- Aaand close the loop :D
+      let node' = replaceAt subnode path node
+      writeBChan eventChan $ EventNode node'
+      receiveUpdates eventChan node' conn -- Aaand close the loop :D
     _ -> closeWithErrorMessage conn "Invalid packet: Expected update"
 
 runCorrectClient :: ClientOptions -> WS.ClientApp a -> IO a

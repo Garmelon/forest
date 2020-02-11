@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
 
 module Forest.Node
   (
   -- * Node
     NodeId
   , Node(..)
+  , newNode
   , emptyNode
   , hasChildren
   , mapChildren
@@ -20,8 +20,6 @@ module Forest.Node
   , isValidPath
   , narrowPath
   , narrowSet
-  -- * Example values
-  , exampleNode
   ) where
 
 import           Control.Monad
@@ -39,10 +37,10 @@ type NodeId = T.Text
 
 data Node = Node
   { nodeText     :: !T.Text
-  , nodeAct      :: !Bool
   , nodeEdit     :: !Bool
   , nodeDelete   :: !Bool
   , nodeReply    :: !Bool
+  , nodeAct      :: !Bool
   , nodeChildren :: !(Map.Map NodeId Node)
   } deriving (Show, Generic)
 
@@ -56,8 +54,17 @@ instance ToJSON Node where
 instance FromJSON Node where
   parseJSON = genericParseJSON nodeOptions
 
-emptyNode :: T.Text -> Bool -> Bool -> Bool -> Bool -> Node
-emptyNode text edit delete reply act = Node text edit delete reply act Map.empty
+newNode :: String -> T.Text -> [Node] -> Node
+newNode flags text children =
+  let edit   = 'e' `elem` flags
+      delete = 'd' `elem` flags
+      reply  = 'r' `elem` flags
+      act    = 'a' `elem` flags
+      pairedChildren = zip (map (T.pack . show) [(0::Integer)..]) children
+  in  Node text edit delete reply act $ Map.fromList pairedChildren
+
+emptyNode :: String -> T.Text -> Node
+emptyNode flags text = newNode flags text []
 
 hasChildren :: Node -> Bool
 hasChildren = not . Map.null . nodeChildren
@@ -99,46 +106,3 @@ narrowPath _ _ = Nothing
 
 narrowSet :: NodeId -> Set.Set Path -> Set.Set Path
 narrowSet x s = Set.fromList [Path ys | Path (y:ys) <- Set.toList s, x == y]
-
-{- For testing -}
-
-exampleNode :: Node
-exampleNode =
-  Node "forest" False False True True (Map.fromList
-    [("0", Node "CHANGELOG.md" True True False False (Map.fromList []))
-    , ("1", Node "LICENSE" False False False True (Map.fromList []))
-    , ("2", Node "README.md" False False False True (Map.fromList []))
-    , ("3", Node "Setup.hs" True True False False (Map.fromList []))
-    , ("4", Node "client" True False True False (Map.fromList
-      [("0", Node "Main.hs" False True True False (Map.fromList []))
-      ]))
-    , ("5", Node "forest.cabal" True True True False (Map.fromList []))
-    , ("6", Node "gen_file_node.py" True False False True (Map.fromList []))
-    , ("7", Node "package.yaml" True False True False (Map.fromList []))
-    , ("8", Node "server" True True True False (Map.fromList
-      [("0", Node "Main.hs" False False True True (Map.fromList []))
-      ]))
-    , ("9", Node "src" False False False True (Map.fromList
-      [("0", Node "Forest" False True True False (Map.fromList
-        [("0", Node "Api.hs" True True True False (Map.fromList []))
-        , ("1", Node "Broadcast.hs" False False False False (Map.fromList []))
-        , ("2", Node "Client" True True True False (Map.fromList
-          [("0", Node "Node.hs" True True True True (Map.fromList []))
-          , ("1", Node "NodeEditor.hs" True False False True (Map.fromList []))
-          , ("2", Node "ResourceName.hs" True False False False (Map.fromList []))
-          , ("3", Node "Tree.hs" False True True True (Map.fromList []))
-          , ("4", Node "WidgetTree.hs" True False True False (Map.fromList []))
-          ]))
-        , ("3", Node "Node.hs" True False False False (Map.fromList []))
-        , ("4", Node "Server.hs" False False False False (Map.fromList []))
-        , ("5", Node "TreeModule" False True False True (Map.fromList
-          [("0", Node "ConstModule.hs" True False False False (Map.fromList []))
-          ]))
-        , ("6", Node "TreeModule.hs" True True False False (Map.fromList []))
-        , ("7", Node "Util.hs" False True False True (Map.fromList []))
-        ]))
-      , ("1", Node "Forest.hs" False True False False (Map.fromList []))
-      ]))
-    , ("10", Node "stack.yaml" True False False True (Map.fromList []))
-    , ("11", Node "stack.yaml.lock" False False False True (Map.fromList []))
-    ])

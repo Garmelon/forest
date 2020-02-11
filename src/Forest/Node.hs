@@ -60,7 +60,10 @@ newNode flags text children =
       delete = 'd' `elem` flags
       reply  = 'r' `elem` flags
       act    = 'a' `elem` flags
-      pairedChildren = zip (map (T.pack . show) [(0::Integer)..]) children
+      digits = length $ show $ length children
+      formatId :: Integer -> T.Text
+      formatId = T.justifyRight digits '0' . T.pack . show
+      pairedChildren = zip (map formatId [0..]) children
   in  Node text edit delete reply act $ Map.fromList pairedChildren
 
 emptyNode :: String -> T.Text -> Node

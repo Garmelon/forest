@@ -15,6 +15,7 @@ import           Brick.Widgets.Edit
 import qualified Data.Text                  as T
 import           Data.Text.Zipper
 import qualified Graphics.Vty               as Vty
+import           Lens.Micro
 
 import           Forest.Client.ResourceName
 
@@ -52,8 +53,13 @@ handleNodeEditorEvent event ne = do
   pure ne{neEditor = newEditor}
 
 renderNodeEditor :: NodeEditor -> Widget ResourceName
-renderNodeEditor ne = vLimit height $ renderEditor renderFunc True $ neEditor ne
+renderNodeEditor ne = makeVisible $ vLimit height $ renderEditor renderFunc True ed
   where
+    ed = neEditor ne
+
     height = length $ getCurrentText ne
     renderFunc :: [T.Text] -> Widget ResourceName
     renderFunc = vBox . map (\t -> if T.null t then txt " " else txt t)
+
+    (row, col) = cursorPosition $ ed ^. editContentsL
+    makeVisible = visibleRegion (Location (col, row)) (1, 1)

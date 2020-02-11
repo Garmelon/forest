@@ -41,4 +41,4 @@ parser = ClientOptions
       )
 
 clientOptionsParserInfo :: ParserInfo ClientOptions
-clientOptionsParserInfo = info parser mempty
+clientOptionsParserInfo = info (helper <*> parser) mempty

@@ -30,7 +30,7 @@ decorateExpand True widget  = withDefAttr "expand" widget
 decorateExpand False widget = withDefAttr "noexpand" widget
 
 decorateFocus :: Bool -> Widget n -> Widget n
-decorateFocus True widget  = withDefAttr "focus" widget
+decorateFocus True widget  = visible $ withDefAttr "focus" widget
 decorateFocus False widget = withDefAttr "nofocus" widget
 
 decorateFlags :: Node -> Widget n -> Widget n

@@ -134,7 +134,7 @@ onKeyWithEditor ed cs ev = updateEditor ed cs ev
 {- And the rest of the Brick application -}
 
 clientDraw :: ClientState -> [Widget ResourceName]
-clientDraw cs = [padTop (Pad 1) $ padLeft (Pad 2) vp]
+clientDraw cs = [padTopBottom 1 $ padLeftRight 2 vp]
   where
     tree = renderTree boxDrawingBranching (csEditor cs) (csTree cs)
     vp = viewport RnViewport Vertical tree

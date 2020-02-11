@@ -49,7 +49,7 @@ narrowDrawState nodeId ds = ds
   }
 
 nodeToWidget :: Node -> Widget ResourceName
-nodeToWidget  node = txt $ nodeText node
+nodeToWidget  node = txtWrap $ nodeText node
 
 subnodeToTree :: DrawState -> NodeId -> Node -> WidgetTree ResourceName
 subnodeToTree ds nodeId node =

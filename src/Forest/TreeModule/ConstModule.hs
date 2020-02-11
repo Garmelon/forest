@@ -23,40 +23,60 @@ constModule node sendNode continue = do
 
 projectDescriptionNode :: Node
 projectDescriptionNode =
-  newNode "" "Hello."
+  newNode "" "About"
   [ newNode "" "This project is an experiment in tree-based interaction." []
-  , newNode "" "Its basic unit is the node (you're looking at one right now)." []
-  , newNode "" "A node mostly contains text\nthat is not constrained\nto a\nsingle\nline." []
-  , newNode "" "In addition to that, a node can have any number of child nodes."
-    [ newNode "" "This node is an example child node." []
-    , newNode "" "Of course, children can have children too."
-      [ newNode "" "It's nodes all the way down."
-        [ newNode "" "Just kidding, it's turtles of course." []
-        ]
+  , newNode "" "Motivation"
+    [ newNode "" "My goals for this project were:" []
+    , newNode "" "Interactons between multiple people"
+      [ newNode "" "I wanted to create a project that let multiple people interact with each other in different ways." []
+      , newNode "" "Examples for interactions include:" []
+      , newNode "" "Chatting" []
+      , newNode "" "Collaborative editing" []
+      , newNode "" "Playing (multiplayer) games" []
+      , newNode "" "The project should allow for many different kinds of interactions." []
       ]
+    , newNode "" "Portability"
+      [ newNode "" "The project should be usable on multiple different platforms." []
+      , newNode "" "To facilitate this, clients should be easy to create." []
+      , newNode "" "In particular, I wanted at least one terminal-based and one web-based client." []
+      ]
+    , newNode "" "Based on these goals, I made the following design decisions:" []
+    , newNode "" "Text-based"
+      [ newNode "" "Text is the one medium that works on all platforms." []
+      , newNode "" "Text is also easy to work with as a programmer." []
+      , newNode "" "Finally, text still allows for a lot of different interactions." []
+      , newNode "" "Of all the kinds of media one can produce with a computer, text is easy and quick to create." []
+      , newNode "" "After all, pretty much every computer has a keyboard." []
+      ]
+    , newNode "" "Tree-based"
+      [ newNode "" "While plain text may be easy to work with, it makes interactions cumbersome if limited to basic input and output." []
+      , newNode "" "To make interactions nicer, the server could send the client a screen's worth of text to display, in effect creating a TUI-like interface." []
+      , newNode "" "The client would then only need to send key presses or mouse clicks to the server." []
+      , newNode "" "In my opinion, that approach moves too many decisions on how to interact to the server and imposes unnecessary limits on the client design." []
+      , newNode "" "Instead, I went with a plaintext-in-tree-structure approach, which allows for more flexibility in the client design." []
+      , newNode "" "Also, this might make bots easier to write, since they don't have to emulate human input." []
+      ]
+    , newNode "" "Simple API"
+      [ newNode "" "Every client must use the same API to interact with the server." []
+      , newNode "" "Because clients should be easy to create on different platforms, the API should also be simple." []
+      , newNode "" "One way in which the API is simple is that the server doesn't send direct responses to client commands." []
+      , newNode "" "Instead, there is only the 'update' packet, which is sent whenever the client should modify its tree structure." []
+      , newNode "" "In total, there are 5 different client packages and 2 different server packages." []
+      , newNode "" "If at some point the API turns out to be too simple, it has a built-in way of negotiating protocol extensions." []
+      ]
+    , newNode "" "Most logic in server"
+      [ newNode "" "All logic besides the immediate input handling and tree folding happens in the server." []
+      , newNode "" "This has multiple advantages:" []
+      , newNode "" "The API and clients are simpler, clients are easier to write or maintain." []
+      , newNode "" "Updates in logic don't require updates of the client." []
+      , newNode "" "The server-side logic becomes easier to write." []
+      ]
+    , newNode "" "Those design decisions should allow for various different kinds of interactions." []
+    , newNode "" "For example: Linear and threaded chat, collaborative node editing, reading node-based documents (like this one), playing text adventures and more." []
+    , newNode "" "And of course, which interactions are supported only depends on the server and not on the client." []
     ]
-  , newNode "" "But that's not all there is to nodes." []
-  , newNode "" "Each node also has a set of four different permissions."
-    [ newNode "" "Those permissions describe how you can interact with a node (besides folding and unfolding it)." []
-    , newNode "" "Here are the four permissions, by name:"
-      [ newNode "e" "edit"
-        [ newNode "" "If a node has the 'edit' permission, its text can be edited." []
-        ]
-      , newNode "d" "delete"
-        [ newNode "" "If a node has the 'delete' permission, it can be deleted." []
-        ]
-      , newNode "r" "reply"
-        [ newNode "" "If a node has the 'reply' permission, a child node with custom text can be created." []
-        ]
-      , newNode "a" "act"
-        [ newNode "" "If a node has the 'act' permission, a node-specific action can be performed with it." []
-        ]
-      , newNode "" "The above nodes have their respective permission set, but the server will ignore any actions." []
-      , newNode "" "Feel free to try out all the permissions, but don't be surprised if you try to delete a node and nothing happens." []
-      ]
-    , newNode "" "Of course, a single node can have any combination of permissions."
-      [ newNode "er" "For example, this node has both the 'edit' and 'reply' permissions." []
-      , newNode "eda" "And this node has all permissions except the 'reply' permission." []
-      ]
+  , newNode "" "Inspirations"
+    [ newNode "" "The tree-based chat model and UI of euphoria (euphoria.io) and instant (instant.leet.nu)" []
+    , newNode "" "MUDs (which are text based and most of the logic happens server-side)" []
     ]
   ]

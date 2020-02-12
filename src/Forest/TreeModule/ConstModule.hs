@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Forest.TreeModule.ConstModule
-  ( constModule
+  ( ConstModule
+  , constModule
   , projectDescriptionNode
   ) where
 
@@ -11,10 +12,6 @@ import           Forest.TreeModule
 data ConstModule = ConstModule
 
 instance TreeModule ConstModule where
-  edit _ _ _ = pure ()
-  delete _ _ = pure ()
-  reply _ _ _ = pure ()
-  act _ _ = pure ()
 
 constModule :: Node -> ModuleConstructor ConstModule
 constModule node sendNode continue = do

@@ -184,12 +184,8 @@ performInitialContact conn = do
     (ServerHello _ _) -> closeWithErrorMessage conn "Invalid protocol extensions"
     _ -> closeWithErrorMessage conn "Invalid packet: Expected hello"
 
-sendCloseEvent :: BChan Event -> WS.ConnectionException -> IO ()
-sendCloseEvent eventChan =
-  writeBChan eventChan . EventConnectionClosed . T.pack . show
-
 receiveUpdates :: BChan Event -> Node -> WS.Connection -> IO ()
-receiveUpdates eventChan node conn = handle (sendCloseEvent eventChan) $ do
+receiveUpdates eventChan node conn = do
   packet <- receivePacket conn
   case packet of
     ServerUpdate path subnode -> do
@@ -211,6 +207,10 @@ runCorrectClient opts app
 
 {- Gluing everything together -}
 
+sendCloseEvent :: BChan Event -> SomeException -> IO ()
+sendCloseEvent eventChan =
+  writeBChan eventChan . EventConnectionClosed . T.pack . show
+
 main :: IO ()
 main = do
   opts <- execParser clientOptionsParserInfo
@@ -221,7 +221,7 @@ main = do
     chan <- newBChan 100
     let appState = newClientState chan node conn
     putStrLn "Starting WS thread"
-    withThread (receiveUpdates chan node conn) $ do
+    withThread (handle (sendCloseEvent chan) $ receiveUpdates chan node conn) $ do
       putStrLn "Starting UI"
       let vtyBuilder = Vty.mkVty Vty.defaultConfig
       initialVty <- vtyBuilder

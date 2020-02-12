@@ -58,4 +58,4 @@ serverApp pingDelay constructor pendingConnection = do
           constructor (writeChan chan) $ receivePackets conn
       _ -> closeWithErrorMessage conn "Invalid packet: Expected a hello packet"
   where
-    initialNode = txtNode "" "Loading ..."
+    initialNode = txtNode "" "Loading..."

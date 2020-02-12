@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections              #-}
 
 module Forest.Node
   (
@@ -8,11 +9,15 @@ module Forest.Node
   , Node(..)
   , newNode
   , txtNode
+  , getChild
   , hasChildren
   , mapChildren
   , applyId
   , applyPath
+  , alterAt
+  , editAt
   , replaceAt
+  , diffNodes
   -- * Path
   , Path(..)
   , localPath
@@ -25,10 +30,10 @@ module Forest.Node
 import           Control.Monad
 import           Data.Aeson
 import           Data.Char
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Strict       as Map
 import           Data.Maybe
-import qualified Data.Set        as Set
-import qualified Data.Text       as T
+import qualified Data.Set              as Set
+import qualified Data.Text             as T
 import           GHC.Generics
 
 {- Node -}
@@ -42,7 +47,8 @@ data Node = Node
   , nodeReply    :: !Bool
   , nodeAct      :: !Bool
   , nodeChildren :: !(Map.Map NodeId Node)
-  } deriving (Show, Generic)
+  }
+  deriving (Show, Generic)
 
 nodeOptions :: Options
 nodeOptions = defaultOptions{fieldLabelModifier = map toLower . drop 4}
@@ -69,6 +75,9 @@ newNode flags text children =
 txtNode :: String -> T.Text -> Node
 txtNode flags text = newNode flags text []
 
+getChild :: NodeId -> Node -> Maybe Node
+getChild nodeId node = nodeChildren node Map.!? nodeId
+
 hasChildren :: Node -> Bool
 hasChildren = not . Map.null . nodeChildren
 
@@ -81,11 +90,35 @@ applyId nodeId node = nodeChildren node Map.!? nodeId
 applyPath :: Path -> Node -> Maybe Node
 applyPath (Path ids) node = foldM (flip applyId) node ids
 
+alterChild :: (Maybe Node -> Maybe Node) -> NodeId -> Node -> Node
+alterChild f nodeId node = node{nodeChildren = Map.alter f nodeId (nodeChildren node)}
+
+alterAt :: (Maybe Node -> Maybe Node) -> Path -> Node -> Maybe Node
+alterAt f (Path []) node = f (Just node)
+alterAt f (Path (x:xs)) node = Just $ alterChild (>>= alterAt f (Path xs)) x node
+
+editAt :: (Node -> Node) -> Path -> Node -> Node
+editAt f (Path [])     = f
+editAt f (Path (x:xs)) = alterChild (fmap $ editAt f (Path xs)) x
+
 replaceAt :: Node -> Path -> Node -> Node
-replaceAt childNode (Path []) _ = childNode
-replaceAt childNode (Path (x:xs)) node =
-  let newChildren = Map.adjust (replaceAt childNode $ Path xs) x $ nodeChildren node
-  in  node{nodeChildren = newChildren}
+replaceAt child = editAt (const child)
+
+diffNodes :: Node -> Node -> Maybe (Path, Node)
+diffNodes a b
+  | nodesDiffer || childrenChanged = Just (Path [], b)
+  | otherwise = case differingChildren of
+      []                   -> Nothing
+      [(x, Path xs, node)] -> Just (Path (x:xs), node)
+      _                    -> Just (Path [], b)
+  where
+    nodesDiffer = nodeText a /= nodeText b
+      || any (\f -> f a /= f b) [nodeEdit, nodeDelete, nodeReply, nodeAct]
+    aChildren = nodeChildren a
+    bChildren = nodeChildren b
+    childrenChanged = Map.keysSet aChildren /= Map.keysSet bChildren
+    diffedChildren = Map.toList $ Map.intersectionWith diffNodes aChildren bChildren
+    differingChildren = [(key, path, node) | (key, Just (path, node)) <- diffedChildren]
 
 {- Path -}
 

@@ -17,12 +17,16 @@ import           Forest.Util
 {- Thread that sends updates to the client -}
 
 sendUpdatesThread :: WS.Connection -> Chan Node -> Node -> IO ()
-sendUpdatesThread conn nodeChan _ = do
-  node' <- readChan nodeChan
-  -- TODO Don't send the whole node every time
-  putStrLn $ "Sending full node update with " ++ show node'
-  sendPacket conn $ ServerUpdate (Path []) node'
-  sendUpdatesThread conn nodeChan node'
+sendUpdatesThread conn nodeChan nodeA = do
+  nodeB <- readChan nodeChan
+  case diffNodes nodeA nodeB of
+    Nothing -> do
+      putStrLn "Sending no update because the node didn't change"
+      sendUpdatesThread conn nodeChan nodeA
+    Just (path, nextNode) -> do
+      putStrLn $ "Sending partial update for path " ++ show path ++ ": " ++ show nextNode
+      sendPacket conn $ ServerUpdate path nextNode
+      sendUpdatesThread conn nodeChan nodeB
 
 {- Main server application that receives and processes client packets -}
 

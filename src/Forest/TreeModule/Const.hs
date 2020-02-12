@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Forest.TreeModule.ConstModule
+module Forest.TreeModule.Const
   ( ConstModule
   , constModule
   , projectDescriptionNode

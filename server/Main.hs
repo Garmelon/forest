@@ -2,13 +2,13 @@
 
 module Main where
 
-import qualified Network.WebSockets            as WS
+import qualified Network.WebSockets        as WS
 
-import           Forest.Server
 import           Forest.Node
-import           Forest.TreeModule.ConstModule
-import           Forest.TreeModule.AnimateModule
-import           Forest.TreeModule.ForkModule
+import           Forest.Server
+import           Forest.TreeModule.Animate
+import           Forest.TreeModule.Const
+import           Forest.TreeModule.Fork
 
 pingDelay :: Int
 pingDelay = 10

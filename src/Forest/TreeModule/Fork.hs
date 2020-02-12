@@ -2,7 +2,7 @@
 {-# LANGUAGE KindSignatures            #-}
 {-# LANGUAGE RankNTypes                #-}
 
-module Forest.TreeModule.ForkModule
+module Forest.TreeModule.Fork
   ( ForkModule
   , ProngConstructor(..)
   , forkModule

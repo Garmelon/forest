@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Forest.TreeModule.AnimateModule
+module Forest.TreeModule.Animate
   ( AnimateModule
   , animateModule
   ) where

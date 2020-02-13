@@ -6,7 +6,6 @@ module Forest.Server
   ) where
 
 import           Control.Concurrent.Chan
-import           Control.Monad
 import qualified Network.WebSockets      as WS
 
 import           Forest.Api
@@ -31,7 +30,7 @@ sendUpdatesThread conn nodeChan nodeA = do
 {- Main server application that receives and processes client packets -}
 
 receivePackets :: TreeModule a => WS.Connection -> a -> IO ()
-receivePackets conn treeModule = forever $ do
+receivePackets conn treeModule = whileM $ do
   packet <- receivePacket conn
   case packet of
     ClientEdit path text -> do

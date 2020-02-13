@@ -3,6 +3,7 @@
 module Forest.Util
   ( findPrev
   , findNext
+  , whileM
   , withThread
   , sendPacket
   , closeWithErrorMessage
@@ -24,6 +25,14 @@ findNext f as = snd <$> find (f . fst) (zip as $ tail as)
 
 withThread :: IO () -> IO () -> IO ()
 withThread thread main = withAsync thread $ const main
+
+-- | Run a monadic action until it returns @False@ for the first time.
+whileM :: Monad m => m Bool -> m ()
+whileM f = do
+  continue <- f
+  if continue
+    then whileM f
+    else pure ()
 
 sendPacket :: ToJSON a => WS.Connection -> a -> IO ()
 sendPacket conn packet = WS.sendTextData conn $ encode packet

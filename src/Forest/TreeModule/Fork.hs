@@ -22,25 +22,25 @@ data ProngConstructor = forall a . TreeModule a => ProngConstructor (ModuleConst
 newtype ForkModule = ForkModule (Map.Map NodeId Prong)
 
 instance TreeModule ForkModule where
-  edit _ (Path []) _ = pure ()
+  edit _ (Path []) _ = pure True
   edit (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
     Just (Prong a) -> edit a (Path xs) text
-    Nothing -> pure ()
+    Nothing -> pure True
 
-  delete _ (Path []) = pure ()
+  delete _ (Path []) = pure True
   delete (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
     Just (Prong a) -> delete a (Path xs)
-    Nothing -> pure ()
+    Nothing -> pure True
 
-  reply _ (Path []) _ = pure ()
+  reply _ (Path []) _ = pure True
   reply (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
     Just (Prong a) -> reply a (Path xs) text
-    Nothing -> pure ()
+    Nothing -> pure True
 
-  act _ (Path []) = pure ()
+  act _ (Path []) = pure True
   act (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
     Just (Prong a) -> act a (Path xs)
-    Nothing -> pure ()
+    Nothing -> pure True
 
 sendNodeFromProng
   :: T.Text

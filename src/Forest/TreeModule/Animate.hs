@@ -1,21 +1,22 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Forest.TreeModule.Animate
   ( AnimateModule
   , animateModule
   ) where
 
-import Control.Concurrent
+import           Control.Concurrent
 
-import           Forest.TreeModule
 import           Forest.Node
+import           Forest.TreeModule
 import           Forest.Util
 
-data AnimateModule = AnimateModule
+data AnimateModule r = AnimateModule
 
-instance TreeModule AnimateModule where
+instance TreeModule AnimateModule () where
 
-animateModule :: Int -> [Node] -> ModuleConstructor AnimateModule
+animateModule :: Int -> [Node] -> ModuleConstructor (AnimateModule ())
 animateModule delay frames sendNode continue =
   withThread (animateThread frames) $ continue AnimateModule
   where

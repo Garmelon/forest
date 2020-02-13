@@ -4,6 +4,7 @@ module Forest.Util
   ( findPrev
   , findNext
   , whileM
+  , runUntilJustM
   , withThread
   , sendPacket
   , closeWithErrorMessage
@@ -33,6 +34,14 @@ whileM f = do
   if continue
     then whileM f
     else pure ()
+
+-- | Run a monadic action until it returns @Just a@ for the first time.
+runUntilJustM :: Monad m => m (Maybe a) -> m a
+runUntilJustM f = do
+  result <- f
+  case result of
+    Nothing -> runUntilJustM f
+    Just a  -> pure a
 
 sendPacket :: ToJSON a => WS.Connection -> a -> IO ()
 sendPacket conn packet = WS.sendTextData conn $ encode packet

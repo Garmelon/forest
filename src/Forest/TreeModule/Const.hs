@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Forest.TreeModule.Const
   ( ConstModule
@@ -9,11 +10,11 @@ module Forest.TreeModule.Const
 import           Forest.Node
 import           Forest.TreeModule
 
-data ConstModule = ConstModule
+data ConstModule r = ConstModule
 
-instance TreeModule ConstModule where
+instance TreeModule ConstModule () where
 
-constModule :: Node -> ModuleConstructor ConstModule
+constModule :: Node -> ModuleConstructor (ConstModule ())
 constModule node sendNode continue = do
   sendNode node
   continue ConstModule

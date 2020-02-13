@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Forest.Server
@@ -29,8 +30,8 @@ sendUpdatesThread conn nodeChan nodeA = do
 
 {- Main server application that receives and processes client packets -}
 
-receivePackets :: TreeModule a => WS.Connection -> a -> IO ()
-receivePackets conn treeModule = whileM $ do
+receivePackets :: TreeModule a () => WS.Connection -> a () -> IO ()
+receivePackets conn treeModule = runUntilJustM $ do
   packet <- receivePacket conn
   case packet of
     ClientEdit path text -> do
@@ -47,7 +48,7 @@ receivePackets conn treeModule = whileM $ do
       act treeModule path
     ClientHello _ -> closeWithErrorMessage conn "Invalid packet: Hello can only be sent once"
 
-serverApp :: TreeModule a => Int -> ModuleConstructor a -> WS.ServerApp
+serverApp :: TreeModule a () => Int -> ModuleConstructor (a ()) -> WS.ServerApp
 serverApp pingDelay constructor pendingConnection = do
   conn <- WS.acceptRequest pendingConnection
   chan <- newChan

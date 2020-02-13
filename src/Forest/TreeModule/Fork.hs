@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE KindSignatures            #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE RankNTypes                #-}
 
 module Forest.TreeModule.Fork
@@ -16,31 +17,32 @@ import qualified Data.Text                as T
 import           Forest.Node
 import           Forest.TreeModule
 
-data Prong = forall a . TreeModule a => Prong a
-data ProngConstructor = forall a . TreeModule a => ProngConstructor (ModuleConstructor a)
+data Prong = forall r a . TreeModule a r => Prong (a r)
+data ProngConstructor = forall r a . TreeModule a r =>
+  ProngConstructor (ModuleConstructor (a r))
 
-newtype ForkModule = ForkModule (Map.Map NodeId Prong)
+newtype ForkModule r = ForkModule (Map.Map NodeId Prong)
 
-instance TreeModule ForkModule where
-  edit _ (Path []) _ = pure True
+instance TreeModule ForkModule () where
+  edit _ (Path []) _ = pure Nothing
   edit (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
-    Just (Prong a) -> edit a (Path xs) text
-    Nothing -> pure True
+    Just (Prong a) -> Just () <$ edit a (Path xs) text
+    Nothing -> pure Nothing
 
-  delete _ (Path []) = pure True
+  delete _ (Path []) = pure Nothing
   delete (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
-    Just (Prong a) -> delete a (Path xs)
-    Nothing -> pure True
+    Just (Prong a) -> Just () <$ delete a (Path xs)
+    Nothing -> pure Nothing
 
-  reply _ (Path []) _ = pure True
+  reply _ (Path []) _ = pure Nothing
   reply (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
-    Just (Prong a) -> reply a (Path xs) text
-    Nothing -> pure True
+    Just (Prong a) -> Just () <$ reply a (Path xs) text
+    Nothing -> pure Nothing
 
-  act _ (Path []) = pure True
+  act _ (Path []) = pure Nothing
   act (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
-    Just (Prong a) -> act a (Path xs)
-    Nothing -> pure True
+    Just (Prong a) -> Just () <$ act a (Path xs)
+    Nothing -> pure Nothing
 
 sendNodeFromProng
   :: T.Text
@@ -68,7 +70,7 @@ constructProngs text nodesVar sendNode =
     constructProng nodeId (ProngConstructor constructor) =
       Prong <$> cont (constructor $ sendNodeFromProng text nodesVar sendNode nodeId)
 
-forkModule :: T.Text -> [ProngConstructor] -> ModuleConstructor ForkModule
+forkModule :: T.Text -> [ProngConstructor] -> ModuleConstructor (ForkModule ())
 forkModule text prongs sendNode continue = do
   nodesVar <- newMVar Map.empty
   let digits = length $ show $ length prongs

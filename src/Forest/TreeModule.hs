@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Forest.TreeModule
   ( TreeModule(..)
   , ModuleConstructor
@@ -7,17 +9,17 @@ import qualified Data.Text   as T
 
 import           Forest.Node
 
-class TreeModule a where
-  edit :: a -> Path -> T.Text -> IO Bool
-  edit _ _ _ = pure True
+class TreeModule a r where
+  edit :: a r -> Path -> T.Text -> IO (Maybe r)
+  edit _ _ _ = pure Nothing
 
-  delete :: a -> Path -> IO Bool
-  delete _ _ = pure True
+  delete :: a r -> Path -> IO (Maybe r)
+  delete _ _ = pure Nothing
 
-  reply :: a -> Path -> T.Text -> IO Bool
-  reply _ _ _ = pure True
+  reply :: a r -> Path -> T.Text -> IO (Maybe r)
+  reply _ _ _ = pure Nothing
 
-  act :: a -> Path -> IO Bool
-  act _ _ = pure True
+  act :: a r -> Path -> IO (Maybe r)
+  act _ _ = pure Nothing
 
 type ModuleConstructor a = (Node -> IO ()) -> (a -> IO ()) -> IO ()

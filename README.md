@@ -1,3 +1,5 @@
 # forest
 
-In the beginning there was darkness.
+Forest is an experiment in tree-based interaction.
+
+[API documentation](docs/API.md)

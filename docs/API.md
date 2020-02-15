@@ -4,8 +4,9 @@ The Forest API uses json over websockets as its packet format. The API is
 intentionally kept simple so new clients are easy to create.
 
 When the client or the server detects incorrect data being sent, it should close
-the connection with a relevant error code (usually 1008) and the reason for the
-disconnect in the close message.
+the connection with a relevant
+[status code](https://tools.ietf.org/html/rfc6455#section-7.4) (usually 1008)
+and the reason for the disconnect in the close message.
 
 ## Opening handshake
 
@@ -165,4 +166,3 @@ update its node tree and display the new tree.
 | `nodes`  | list of nodes | The new list of children                               |
 
 If the path is an empty path, the root node list should be replaced.
-

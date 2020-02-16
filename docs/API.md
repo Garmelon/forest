@@ -19,57 +19,58 @@ not send any more hello packets. They may send any other packets.
 
 The client displays a tree of nodes to the user. The user can then interact with
 that tree in various ways (see the [client packets](#client-packets)). The
-tree's root is a list of top-level nodes. Those nodes then have lists of child
-nodes.
+tree's root is a single node. This node has child nodes which then have child
+nodes themselves and so on.
 
 A node is a JSON object with the following properties:
 
-| Property   | Type          | Description                                          |
-|------------|---------------|------------------------------------------------------|
-| `id`       | string        | The node's ID                                        |
-| `text`     | string        | The node's text contents                             |
-| `children` | list of nodes | The node's child nodes                               |
-| `edit`     | bool          | Whether the node's text can be edited                |
-| `delete`   | bool          | Whether the node can be deleted                      |
-| `reply`    | bool          | Whether a new child node to this node can be created |
-| `act`      | bool          | Whether this node's action can be performed          |
+| Property   | Type                     | Description                                          |
+|------------|--------------------------|------------------------------------------------------|
+| `text`     | string                   | The node's text contents                             |
+| `edit`     | bool                     | Whether the node's text can be edited                |
+| `delete`   | bool                     | Whether the node can be deleted                      |
+| `reply`    | bool                     | Whether a new child node to this node can be created |
+| `act`      | bool                     | Whether this node's action can be performed          |
+| `children` | map from node ID to node | The node's child nodes                               |
+| `order`    | list of node IDs         | The order the children should be displayed in        |
 
-Each node has an ID that is unique within the node list it is in. A node's ID
-does not have to be unique globally.
+Each node has a map of child nodes which are identified by an ID. That ID does
+not have to be unique globally.
 
-When a node is displayed, its children should be displayed according to their
-order in the list. The same is true for the root node list.
+In addition to that, each node also defines a display order for its child nodes
+in the form of a list of node IDs. The list contains each child node ID exactly
+once. The nodes are listed from top to bottom.
 
 Here is an example node:
 
 ``` json
 {
-  "id": "node1",
   "text": "This is an example node",
   "edit": false,
   "delete": false,
   "reply": false,
   "act": false,
-  "children": [
-    {
-      "id": "child1",
+  "children": {
+    "child1": {
       "text": "And this is a child node",
       "edit": true,
       "delete": true,
       "reply": false,
       "act": false,
-      "children": []
+      "children": {},
+      "order": []
     },
-    {
-      "id": "child2",
+    "child2": {
       "text": "This is another child node",
       "edit": false,
       "delete": false,
       "reply": false,
       "act": true,
-      "children": []
+      "children": {},
+      "order": []
     }
-  ]
+  },
+  "order": ["child2", "child1"]
 }
 ```
 
@@ -156,13 +157,11 @@ contains the protocol extensions that will be active for this connection.
 ### update
 
 An `update` packet is sent by the server whenever the client's node tree
-changes. When receiving an `update` package, the client should immediately
-update its node tree and display the new tree.
+changes. When receiving an `update` packet, the client should immediately update
+its node tree and display the new tree.
 
-| Property | Type          | Description                                            |
-|----------|---------------|--------------------------------------------------------|
-| `type`   | string        | The string `update`                                    |
-| `path`   | path          | The path to the node whose children should be replaced |
-| `nodes`  | list of nodes | The new list of children                               |
-
-If the path is an empty path, the root node list should be replaced.
+| Property | Type   | Description                                  |
+|----------|--------|----------------------------------------------|
+| `type`   | string | The string `update`                          |
+| `path`   | path   | The path to the node that should be replaced |
+| `node`   | node   | The replacement node                         |

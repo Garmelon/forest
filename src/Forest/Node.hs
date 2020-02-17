@@ -1,108 +1,150 @@
-{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 module Forest.Node
-  (
-  -- * Node
-    NodeId
+  ( NodeId
+  , enumerateIds
+  , NodeFlags(..)
+  , readFlags
   , Node(..)
   , newNode
   , txtNode
-  , getChild
   , hasChildren
   , mapChildren
   , applyId
   , applyPath
-  , alterAt
-  , editAt
+  , adjustAt
   , replaceAt
   , diffNodes
-  -- * Path
   , Path(..)
-  , localPath
-  , isLocalPath
-  , isValidPath
-  , narrowPath
+  , narrow
   , narrowSet
   ) where
 
 import           Control.Monad
 import           Data.Aeson
-import           Data.Char
-import qualified Data.Map.Strict       as Map
+import qualified Data.Map.Strict   as Map
 import           Data.Maybe
-import qualified Data.Set              as Set
-import qualified Data.Text             as T
-import           GHC.Generics
+import qualified Data.Set          as Set
+import qualified Data.Text         as T
 
-{- Node -}
+import qualified Forest.OrderedMap as OMap
 
 type NodeId = T.Text
 
+enumerateIds :: [NodeId]
+enumerateIds = map (T.pack . show) [(0::Integer)..]
+
+data NodeFlags = NodeFlags
+  { flagEdit   :: !Bool
+  , flagDelete :: !Bool
+  , flagReply  :: !Bool
+  , flagAct    :: !Bool
+  } deriving (Show, Eq)
+
+instance Semigroup NodeFlags where
+  f1 <> f2 = NodeFlags
+    { flagEdit   = flagEdit f1  || flagEdit f2
+    , flagDelete = flagEdit f1  || flagEdit f2
+    , flagReply  = flagReply f1 || flagReply f2
+    , flagAct    = flagAct f1   || flagAct f2
+    }
+
+instance Monoid NodeFlags where
+  mempty = NodeFlags
+    { flagEdit   = False
+    , flagDelete = False
+    , flagReply  = False
+    , flagAct    = False
+    }
+
+readFlags :: String -> NodeFlags
+readFlags s = NodeFlags
+  { flagEdit   = 'e' `elem` s
+  , flagDelete = 'd' `elem` s
+  , flagReply  = 'r' `elem` s
+  , flagAct    = 'a' `elem` s
+  }
+
+-- | A node and its children.
 data Node = Node
   { nodeText     :: !T.Text
-  , nodeEdit     :: !Bool
-  , nodeDelete   :: !Bool
-  , nodeReply    :: !Bool
-  , nodeAct      :: !Bool
-  , nodeChildren :: !(Map.Map NodeId Node)
-  }
-  deriving (Show, Generic)
-
-nodeOptions :: Options
-nodeOptions = defaultOptions{fieldLabelModifier = map toLower . drop 4}
+  , nodeFlags    :: !NodeFlags
+  , nodeChildren :: !(OMap.OrderedMap NodeId Node)
+  } deriving (Show)
 
 instance ToJSON Node where
-  toJSON = genericToJSON nodeOptions
-  toEncoding = genericToEncoding nodeOptions
+  toJSON node = object
+    [ "text" .= nodeText node
+    , "edit" .= flagEdit flags
+    , "delete" .= flagDelete flags
+    , "reply" .= flagReply flags
+    , "act" .= flagAct flags
+    , "children" .= OMap.toMap children
+    , "order" .= OMap.keys children
+    ]
+    where
+      flags = nodeFlags node
+      children = nodeChildren node
+
+  toEncoding node = pairs
+    (  "text" .= nodeText node
+    <> "edit" .= flagEdit flags
+    <> "delete" .= flagDelete flags
+    <> "reply" .= flagReply flags
+    <> "act" .= flagAct flags
+    <> "children" .= OMap.toMap children
+    <> "order" .= OMap.keys children
+    )
+    where
+      flags = nodeFlags node
+      children = nodeChildren node
 
 instance FromJSON Node where
-  parseJSON = genericParseJSON nodeOptions
+  parseJSON v = parseJSON v >>= \o -> do
+    text <- o .: "text"
+    flags <- NodeFlags
+      <$> o .: "edit"
+      <*> o .: "delete"
+      <*> o .: "reply"
+      <*> o .: "act"
+    children <- o .: "children"
+    order <- o .: "order"
+    pure Node
+      { nodeText = text
+      , nodeFlags = flags
+      , nodeChildren = OMap.fromMapWithOrder children order
+      }
 
 newNode :: String -> T.Text -> [Node] -> Node
-newNode flags text children =
-  let edit   = 'e' `elem` flags
-      delete = 'd' `elem` flags
-      reply  = 'r' `elem` flags
-      act    = 'a' `elem` flags
-      digits = length $ show $ length children
-      formatId :: Integer -> T.Text
-      formatId = T.justifyRight digits '0' . T.pack . show
-      pairedChildren = zip (map formatId [0..]) children
-  in  Node text edit delete reply act $ Map.fromList pairedChildren
+newNode flags text children = Node
+  { nodeText = text
+  , nodeFlags = readFlags flags
+  , nodeChildren = OMap.fromList $ zip enumerateIds children
+  }
 
 txtNode :: String -> T.Text -> Node
 txtNode flags text = newNode flags text []
 
-getChild :: NodeId -> Node -> Maybe Node
-getChild nodeId node = nodeChildren node Map.!? nodeId
-
 hasChildren :: Node -> Bool
-hasChildren = not . Map.null . nodeChildren
+hasChildren = not . OMap.null . nodeChildren
 
 mapChildren :: (NodeId -> Node -> a) -> Node -> [a]
-mapChildren f node = map (uncurry f) $ Map.toAscList $ nodeChildren node
+mapChildren f = map (uncurry f) . OMap.toList . nodeChildren
 
 applyId :: NodeId -> Node -> Maybe Node
-applyId nodeId node = nodeChildren node Map.!? nodeId
+applyId nid node = nodeChildren node OMap.!? nid
 
 applyPath :: Path -> Node -> Maybe Node
 applyPath (Path ids) node = foldM (flip applyId) node ids
 
-alterChild :: (Maybe Node -> Maybe Node) -> NodeId -> Node -> Node
-alterChild f nodeId node = node{nodeChildren = Map.alter f nodeId (nodeChildren node)}
-
-alterAt :: (Maybe Node -> Maybe Node) -> Path -> Node -> Maybe Node
-alterAt f (Path []) node = f (Just node)
-alterAt f (Path (x:xs)) node = Just $ alterChild (>>= alterAt f (Path xs)) x node
-
-editAt :: (Node -> Node) -> Path -> Node -> Node
-editAt f (Path [])     = f
-editAt f (Path (x:xs)) = alterChild (fmap $ editAt f (Path xs)) x
+adjustAt :: (Node -> Node) -> Path -> Node -> Node
+adjustAt f (Path []) node = f node
+adjustAt f (Path (x:xs)) node =
+  node {nodeChildren = OMap.adjust (adjustAt f $ Path xs) x $ nodeChildren node}
 
 replaceAt :: Node -> Path -> Node -> Node
-replaceAt child = editAt (const child)
+replaceAt node = adjustAt $ const node
 
 diffNodes :: Node -> Node -> Maybe (Path, Node)
 diffNodes a b
@@ -112,33 +154,23 @@ diffNodes a b
       [(x, Path xs, node)] -> Just (Path (x:xs), node)
       _                    -> Just (Path [], b)
   where
-    nodesDiffer = nodeText a /= nodeText b
-      || any (\f -> f a /= f b) [nodeEdit, nodeDelete, nodeReply, nodeAct]
+    nodesDiffer = nodeText a /= nodeText b || nodeFlags a /= nodeFlags b
     aChildren = nodeChildren a
     bChildren = nodeChildren b
-    childrenChanged = Map.keysSet aChildren /= Map.keysSet bChildren
-    diffedChildren = Map.toList $ Map.intersectionWith diffNodes aChildren bChildren
+    childrenChanged = OMap.keys aChildren /= OMap.keys bChildren
+    diffedChildren = Map.toList $ Map.intersectionWith diffNodes (OMap.toMap aChildren) (OMap.toMap bChildren)
     differingChildren = [(key, path, node) | (key, Just (path, node)) <- diffedChildren]
-
-{- Path -}
 
 newtype Path = Path
   { pathElements :: [NodeId]
   } deriving (Show, Eq, Ord, Semigroup, Monoid, ToJSON, FromJSON)
 
-localPath :: Path
-localPath = Path []
+-- | Try to remove a 'NodeId' from the beginning of a 'Path'.
+narrow :: NodeId -> Path -> Maybe Path
+narrow nid (Path (x:xs))
+  | nid == x = Just (Path xs)
+narrow _ _ = Nothing
 
-isLocalPath :: Path -> Bool
-isLocalPath = (== localPath)
-
-isValidPath :: Node -> Path -> Bool
-isValidPath node path = isJust $ applyPath path node
-
-narrowPath :: NodeId -> Path -> Maybe Path
-narrowPath x (Path (y:ys))
-  | x == y = Just (Path ys)
-narrowPath _ _ = Nothing
-
+-- | Narrow a whole set of paths, discarding those that could not be narrowed.
 narrowSet :: NodeId -> Set.Set Path -> Set.Set Path
-narrowSet x s = Set.fromList [Path ys | Path (y:ys) <- Set.toList s, x == y]
+narrowSet nid = Set.fromList . mapMaybe (narrow nid) . Set.toList

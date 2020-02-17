@@ -15,11 +15,13 @@ import qualified Data.Map                 as Map
 import qualified Data.Text                as T
 
 import           Forest.Node
+import qualified Forest.OrderedMap        as OMap
 import           Forest.TreeModule
 
 data Prong = forall r a . TreeModule a r => Prong (a r)
+
 data ProngConstructor = forall r a . TreeModule a r =>
-  ProngConstructor (ModuleConstructor (a r))
+  ProngConstructor T.Text (ModuleConstructor (a r))
 
 newtype ForkModule r = ForkModule (Map.Map NodeId Prong)
 
@@ -27,53 +29,66 @@ instance TreeModule ForkModule () where
   edit _ (Path []) _ = pure Nothing
   edit (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
     Just (Prong a) -> Just () <$ edit a (Path xs) text
-    Nothing -> pure Nothing
+    Nothing        -> pure Nothing
 
   delete _ (Path []) = pure Nothing
   delete (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
     Just (Prong a) -> Just () <$ delete a (Path xs)
-    Nothing -> pure Nothing
+    Nothing        -> pure Nothing
 
   reply _ (Path []) _ = pure Nothing
   reply (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
     Just (Prong a) -> Just () <$ reply a (Path xs) text
-    Nothing -> pure Nothing
+    Nothing        -> pure Nothing
 
   act _ (Path []) = pure Nothing
   act (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
     Just (Prong a) -> Just () <$ act a (Path xs)
-    Nothing -> pure Nothing
+    Nothing        -> pure Nothing
 
-sendNodeFromProng
-  :: T.Text
-  -> MVar (Map.Map NodeId Node)
-  -> (Node -> IO ())
-  -> NodeId
-  -> Node
-  -> IO ()
-sendNodeFromProng text nodesVar sendNode nodeId node = do
-  nodes <- takeMVar nodesVar
-  let newNodes = Map.insert nodeId node nodes
-      newTopNode = Node text False False False False newNodes
-  sendNode newTopNode
-  putMVar nodesVar newNodes
+data ProngInfo = ProngInfo
+  { piTopName :: T.Text
+  , piNames   :: Map.Map NodeId T.Text
+  , piNodes   :: Map.Map NodeId Node
+  , piOrder   :: [NodeId]
+  }
+
+renderProngInfo :: ProngInfo -> Node
+renderProngInfo pInfo =
+  let childMap = Map.intersectionWith
+        (\name node -> node{nodeText = name})
+        (piNames pInfo)
+        (piNodes pInfo)
+      children = OMap.fromMapWithOrder childMap $ piOrder pInfo
+  in  Node {nodeText = piTopName pInfo, nodeFlags = mempty, nodeChildren = children}
+
+sendNodeFromProng :: MVar ProngInfo -> (Node -> IO ()) -> NodeId -> Node -> IO ()
+sendNodeFromProng piVar sendNode nodeId node =
+  modifyMVar_ piVar $ \pInfo -> do
+    let newPInfo = pInfo {piNodes = Map.insert nodeId node $ piNodes pInfo}
+    sendNode $ renderProngInfo pInfo
+    pure newPInfo
 
 constructProngs
-  :: T.Text
-  -> MVar (Map.Map NodeId Node)
+  :: MVar ProngInfo
   -> (Node -> IO ())
   -> Map.Map NodeId ProngConstructor
   -> Cont (IO ()) (Map.Map NodeId Prong)
-constructProngs text nodesVar sendNode =
+constructProngs piVar sendNode =
   Map.traverseWithKey constructProng
   where
-    constructProng nodeId (ProngConstructor constructor) =
-      Prong <$> cont (constructor $ sendNodeFromProng text nodesVar sendNode nodeId)
+    constructProng nodeId (ProngConstructor _ constructor) =
+      Prong <$> cont (constructor $ sendNodeFromProng piVar sendNode nodeId)
 
 forkModule :: T.Text -> [ProngConstructor] -> ModuleConstructor (ForkModule ())
 forkModule text prongs sendNode continue = do
-  nodesVar <- newMVar Map.empty
-  let digits = length $ show $ length prongs
-      numbers = map (T.justifyRight digits '0' . T.pack . show) [(0::Integer)..]
+  let namePairs = zip enumerateIds $ map (\(ProngConstructor name _) -> name) prongs
+  nodesVar <- newMVar ProngInfo
+    { piTopName = text
+    , piNames = Map.fromList namePairs
+    , piNodes = Map.empty
+    , piOrder = map fst namePairs
+    }
+  let numbers = map (T.pack . show) [(0::Integer)..]
       prongMap = Map.fromList $ zip numbers prongs
-  runCont (constructProngs text nodesVar sendNode prongMap) (continue . ForkModule)
+  runCont (constructProngs nodesVar sendNode prongMap) (continue . ForkModule)

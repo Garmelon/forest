@@ -37,7 +37,7 @@ data ClientState = ClientState
 
 newClientState :: BChan Event -> Node -> WS.Connection -> ClientState
 newClientState eventChan node conn = ClientState
-  { csTree      = newTree node localPath Set.empty
+  { csTree      = newTree node mempty Set.empty
   , csEditor    = Nothing
   , csConn      = conn
   , csEventChan = eventChan
@@ -67,21 +67,21 @@ withCurrent f cs = f cs (getCurrent tree) (getCurrentPath tree)
 editAction :: ClientState -> ClientM (Next ClientState)
 editAction = withCurrent $ \cs node _ -> do
   let editor = editNode $ nodeText node
-  continue $ if nodeEdit node then cs{csEditor = Just editor} else cs
+  continue $ if flagEdit (nodeFlags node) then cs{csEditor = Just editor} else cs
 
 deleteAction :: ClientState -> ClientM (Next ClientState)
 deleteAction = withCurrent $ \cs node path -> do
-  when (nodeDelete node) $
+  when (flagDelete $ nodeFlags node) $
     liftIO $ sendPacket (csConn cs) $ ClientDelete path
   continue cs
 
 replyAction :: ClientState -> ClientM (Next ClientState)
 replyAction = withCurrent $ \cs node _ ->
-  continue $ if nodeReply node then cs{csEditor = Just replyToNode} else cs
+  continue $ if flagReply (nodeFlags node) then cs{csEditor = Just replyToNode} else cs
 
 actAction :: ClientState -> ClientM (Next ClientState)
 actAction = withCurrent $ \cs node path -> do
-  when (nodeAct node) $
+  when (flagAct $ nodeFlags node) $
     liftIO $ sendPacket (csConn cs) $ ClientAct path
   continue cs
 

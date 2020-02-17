@@ -16,7 +16,6 @@ module Forest.Client.Tree
   ) where
 
 import           Brick
-import qualified Data.Map                   as Map
 import           Data.Maybe
 import qualified Data.Set                   as Set
 
@@ -25,6 +24,7 @@ import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
 import           Forest.Client.WidgetTree
 import           Forest.Node
+import qualified Forest.OrderedMap          as OMap
 import           Forest.Util
 
 data Tree = Tree
@@ -135,8 +135,8 @@ toggleFold tree
 -- | Remove all nodes that would not be visible due to the folding.
 applyFolds :: Set.Set Path -> Node -> Node
 applyFolds unfolded node
-  | localPath `Set.member` unfolded = node {nodeChildren = foldedChildren}
-  | otherwise                       = node {nodeChildren = Map.empty}
+  | mempty `Set.member` unfolded = node {nodeChildren = foldedChildren}
+  | otherwise                    = node {nodeChildren = OMap.empty}
   where
-    foldedChildren = Map.fromList $ mapChildren applyFoldsToChild node
-    applyFoldsToChild nid n = (nid, applyFolds (narrowSet nid unfolded) n)
+    foldedChildren = OMap.mapWithKey applyFoldsToChild $ nodeChildren node
+    applyFoldsToChild nid = applyFolds $ narrowSet nid unfolded

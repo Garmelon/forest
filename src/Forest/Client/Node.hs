@@ -12,6 +12,7 @@ import           Forest.Client.NodeEditor
 import           Forest.Client.ResourceName
 import           Forest.Client.WidgetTree
 import           Forest.Node
+import qualified Forest.OrderedMap          as OMap
 
 data DrawState = DrawState
   { dsEditor   :: Maybe NodeEditor
@@ -20,10 +21,10 @@ data DrawState = DrawState
   }
 
 isFocused :: DrawState -> Bool
-isFocused ds = (isLocalPath <$> dsFocused ds) == Just True
+isFocused ds = dsFocused ds == Just mempty
 
 isFolded :: DrawState -> Bool
-isFolded ds = not $ localPath `Set.member` dsUnfolded ds
+isFolded ds = not $ mempty `Set.member` dsUnfolded ds
 
 decorateExpand :: Bool -> Widget n -> Widget n
 decorateExpand True widget  = withDefAttr "expand" widget
@@ -33,19 +34,19 @@ decorateFocus :: Bool -> Widget n -> Widget n
 decorateFocus True widget  = visible $ withDefAttr "focus" widget
 decorateFocus False widget = withDefAttr "nofocus" widget
 
-decorateFlags :: Node -> Widget n -> Widget n
+decorateFlags :: NodeFlags -> Widget n -> Widget n
 decorateFlags node widget =
-  let e = if nodeEdit node then "e" else "-"
-      d = if nodeDelete node then "d" else "-"
-      r = if nodeReply node then "r" else "-"
-      a = if nodeAct node then "a" else "-"
+  let e = if flagEdit node then "e" else "-"
+      d = if flagDelete node then "d" else "-"
+      r = if flagReply node then "r" else "-"
+      a = if flagAct node then "a" else "-"
       flags = "(" <> e <> d <> r <> a <> ")"
   in  widget <+> txt " " <+> withDefAttr "flags" (txt flags)
 
 narrowDrawState :: NodeId -> DrawState -> DrawState
 narrowDrawState nodeId ds = ds
   { dsUnfolded = narrowSet nodeId $ dsUnfolded ds
-  , dsFocused = narrowPath nodeId =<< dsFocused ds
+  , dsFocused = narrow nodeId =<< dsFocused ds
   }
 
 nodeToWidget :: Node -> Widget ResourceName
@@ -57,7 +58,7 @@ subnodeToTree ds nodeId node =
   in  nodeToTree newDs node
 
 subnodesToTrees :: DrawState -> Node -> [WidgetTree ResourceName]
-subnodesToTrees ds = mapChildren (subnodeToTree ds)
+subnodesToTrees ds = map (uncurry $ subnodeToTree ds) . OMap.toList . nodeChildren
 
 nodeToTree :: DrawState -> Node -> WidgetTree ResourceName
 nodeToTree ds node = case dsEditor ds of
@@ -71,7 +72,7 @@ nodeToTree ds node = case dsEditor ds of
     folded = isFolded ds
     expand = decorateExpand $ hasChildren node
     nodeWidget =
-      decorateFlags node $
+      decorateFlags (nodeFlags node) $
       decorateFocus focused $
       expand $ nodeToWidget node
     subnodeWidgets = if folded then [] else subnodesToTrees ds node

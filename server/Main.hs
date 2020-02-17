@@ -25,22 +25,22 @@ main :: IO ()
 main = do
   putStrLn "Starting server"
   WS.runServerWithOptions options $ serverApp pingDelay $ forkModule "Forest"
-    [ ProngConstructor $ constModule $ newNode "" "Test" [txtNode "" "Bla"]
-    , ProngConstructor $ animateModule 200000
-      [ newNode "" "Animate" [txtNode "" "|>    |", txtNode "" "Ping!"]
-      , newNode "" "Animate" [txtNode "" "|->   |", txtNode "" "Ping!"]
-      , newNode "" "Animate" [txtNode "" "| ->  |", txtNode "" "Ping!"]
-      , newNode "" "Animate" [txtNode "" "|  -> |", txtNode "" "Ping!"]
-      , newNode "" "Animate" [txtNode "" "|   ->|", txtNode "" "Ping!"]
-      , newNode "" "Animate" [txtNode "" "|    -|", txtNode "" "Ping!"]
-      , newNode "" "Animate" [txtNode "" "|     |", txtNode "" "Ping!"]
-      , newNode "" "Animate" [txtNode "" "|    <|", txtNode "" "Pong!"]
-      , newNode "" "Animate" [txtNode "" "|   <-|", txtNode "" "Pong!"]
-      , newNode "" "Animate" [txtNode "" "|  <- |", txtNode "" "Pong!"]
-      , newNode "" "Animate" [txtNode "" "| <-  |", txtNode "" "Pong!"]
-      , newNode "" "Animate" [txtNode "" "|<-   |", txtNode "" "Pong!"]
-      , newNode "" "Animate" [txtNode "" "|-    |", txtNode "" "Pong!"]
-      , newNode "" "Animate" [txtNode "" "|     |", txtNode "" "Pong!"]
+    [ ProngConstructor "Test" $ constModule $ newNode "" "" [txtNode "" "Bla"]
+    , ProngConstructor "Animation" $ animateModule 200000 $ map (newNode "" "")
+      [ [txtNode "" "|>    |", txtNode "" "Ping!"]
+      , [txtNode "" "|->   |", txtNode "" "Ping!"]
+      , [txtNode "" "| ->  |", txtNode "" "Ping!"]
+      , [txtNode "" "|  -> |", txtNode "" "Ping!"]
+      , [txtNode "" "|   ->|", txtNode "" "Ping!"]
+      , [txtNode "" "|    -|", txtNode "" "Ping!"]
+      , [txtNode "" "|     |", txtNode "" "Ping!"]
+      , [txtNode "" "|    <|", txtNode "" "Pong!"]
+      , [txtNode "" "|   <-|", txtNode "" "Pong!"]
+      , [txtNode "" "|  <- |", txtNode "" "Pong!"]
+      , [txtNode "" "| <-  |", txtNode "" "Pong!"]
+      , [txtNode "" "|<-   |", txtNode "" "Pong!"]
+      , [txtNode "" "|-    |", txtNode "" "Pong!"]
+      , [txtNode "" "|     |", txtNode "" "Pong!"]
       ]
-    , ProngConstructor $ constModule projectDescriptionNode
+    , ProngConstructor "About" $ constModule projectDescriptionNode
     ]

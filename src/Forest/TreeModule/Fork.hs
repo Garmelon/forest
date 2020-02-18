@@ -28,23 +28,31 @@ newtype ForkModule r = ForkModule (Map.Map NodeId Prong)
 instance TreeModule ForkModule () where
   edit _ (Path []) _ = pure Nothing
   edit (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
-    Just (Prong a) -> Just () <$ edit a (Path xs) text
-    Nothing        -> pure Nothing
+    Nothing -> pure Nothing
+    Just (Prong a) -> do
+      result <- edit a (Path xs) text
+      pure $ () <$ result
 
   delete _ (Path []) = pure Nothing
   delete (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
-    Just (Prong a) -> Just () <$ delete a (Path xs)
-    Nothing        -> pure Nothing
+    Nothing -> pure Nothing
+    Just (Prong a) -> do
+      result <- delete a (Path xs)
+      pure $ () <$ result
 
   reply _ (Path []) _ = pure Nothing
   reply (ForkModule prongs) (Path (x:xs)) text = case prongs Map.!? x of
-    Just (Prong a) -> Just () <$ reply a (Path xs) text
-    Nothing        -> pure Nothing
+    Nothing -> pure Nothing
+    Just (Prong a) -> do
+      result <- reply a (Path xs) text
+      pure $ () <$ result
 
   act _ (Path []) = pure Nothing
   act (ForkModule prongs) (Path (x:xs)) = case prongs Map.!? x of
-    Just (Prong a) -> Just () <$ act a (Path xs)
-    Nothing        -> pure Nothing
+    Nothing -> pure Nothing
+    Just (Prong a) -> do
+      result <- act a (Path xs)
+      pure $ () <$ result
 
 data ProngInfo = ProngInfo
   { piTopName :: T.Text
@@ -66,7 +74,7 @@ sendNodeFromProng :: MVar ProngInfo -> (Node -> IO ()) -> NodeId -> Node -> IO (
 sendNodeFromProng piVar sendNode nodeId node =
   modifyMVar_ piVar $ \pInfo -> do
     let newPInfo = pInfo {piNodes = Map.insert nodeId node $ piNodes pInfo}
-    sendNode $ renderProngInfo pInfo
+    sendNode $ renderProngInfo newPInfo
     pure newPInfo
 
 constructProngs

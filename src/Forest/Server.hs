@@ -7,6 +7,7 @@ module Forest.Server
   ) where
 
 import           Control.Concurrent.Chan
+import           Control.Exception
 import qualified Network.WebSockets      as WS
 
 import           Forest.Api
@@ -48,18 +49,23 @@ receivePackets conn treeModule = runUntilJustM $ do
       act treeModule path
     ClientHello _ -> closeWithErrorMessage conn "Invalid packet: Hello can only be sent once"
 
+printException :: SomeException -> IO ()
+printException e = putStrLn $ "Encountered exception: " ++ show e
+
 serverApp :: TreeModule a () => Int -> ModuleConstructor (a ()) -> WS.ServerApp
 serverApp pingDelay constructor pendingConnection = do
   conn <- WS.acceptRequest pendingConnection
   chan <- newChan
-  WS.withPingThread conn pingDelay (pure ()) $ do
+  WS.withPingThread conn pingDelay (pure ()) $ handle printException $ do
     firstPacket <- receivePacket conn
     case firstPacket of
       ClientHello _ -> do
         putStrLn $ "Sending hello reply with " ++ show initialNode
         sendPacket conn $ ServerHello [] initialNode
         withThread (sendUpdatesThread conn chan initialNode) $
-          constructor (writeChan chan) $ receivePackets conn
+          constructor (writeChan chan) $ \tm -> do
+            receivePackets conn tm
+            putStrLn "Module finished, closing connection"
       _ -> closeWithErrorMessage conn "Invalid packet: Expected a hello packet"
   where
     initialNode = txtNode "" "Loading..."

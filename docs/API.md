@@ -153,6 +153,7 @@ contains the protocol extensions that will be active for this connection.
 |--------------|-----------------|-----------------------------------------------------------------|
 | `type`       | string          | The string `hello`                                              |
 | `extensions` | list of strings | The protocol extensions that will be active for this connection |
+| `node`       | node            | The initial root node                                           |
 
 ### update
 

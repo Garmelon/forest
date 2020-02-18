@@ -26,7 +26,7 @@ import           Forest.Util
 {- First, the UI types -}
 
 data Event = EventNode Node
-  | EventConnectionClosed T.Text
+  | EventConnectionClosed
 
 data ClientState = ClientState
   { csTree      :: Tree
@@ -148,7 +148,7 @@ clientHandleEvent cs (VtyEvent ev) = case csEditor cs of
   Just ed -> onKeyWithEditor ed cs ev
 clientHandleEvent cs (AppEvent ev) = case ev of
   EventNode node -> continue cs{csTree = replaceNode node $ csTree cs}
-  EventConnectionClosed _ -> halt cs
+  EventConnectionClosed -> halt cs
 clientHandleEvent cs _ = continue cs
 
 clientAttrMap :: AttrMap
@@ -208,8 +208,9 @@ runCorrectClient opts app
 {- Gluing everything together -}
 
 sendCloseEvent :: BChan Event -> SomeException -> IO ()
-sendCloseEvent eventChan =
-  writeBChan eventChan . EventConnectionClosed . T.pack . show
+sendCloseEvent eventChan e = do
+  putStrLn $ "Encountered exception: " ++ show e
+  writeBChan eventChan EventConnectionClosed
 
 main :: IO ()
 main = do

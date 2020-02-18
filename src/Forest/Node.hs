@@ -4,6 +4,7 @@
 module Forest.Node
   ( NodeId
   , enumerateIds
+  , findUnusedId
   , NodeFlags(..)
   , readFlags
   , Node(..)
@@ -15,8 +16,12 @@ module Forest.Node
   , applyPath
   , adjustAt
   , replaceAt
+  , deleteAt
+  , appendAt
   , diffNodes
   , Path(..)
+  , split
+  , parent
   , narrow
   , narrowSet
   ) where
@@ -34,6 +39,10 @@ type NodeId = T.Text
 
 enumerateIds :: [NodeId]
 enumerateIds = map (T.pack . show) [(0::Integer)..]
+
+findUnusedId :: Set.Set NodeId -> NodeId
+findUnusedId usedIds =
+  head $ filter (\nid -> not $ nid `Set.member` usedIds) enumerateIds
 
 data NodeFlags = NodeFlags
   { flagEdit   :: !Bool
@@ -146,6 +155,25 @@ adjustAt f (Path (x:xs)) node =
 replaceAt :: Node -> Path -> Node -> Node
 replaceAt node = adjustAt $ const node
 
+-- | Delete a subnode at a specified path. Does nothing if the path is 'mempty'.
+deleteAt :: Path -> Node -> Node
+deleteAt path node = case split path of
+  Nothing -> node
+  Just (parentPath, nodeId) -> adjustAt
+    (\n -> n{nodeChildren = OMap.delete nodeId $ nodeChildren n})
+    parentPath
+    node
+
+-- | Append a new child node to the node at the specified path. Chooses an
+-- unused node id.
+appendAt :: Node -> Path -> Node -> Node
+appendAt node =
+  adjustAt (\n -> n {nodeChildren = appendAtNewId $ nodeChildren n})
+  where
+    appendAtNewId m =
+      let nid = findUnusedId $ OMap.keysSet m
+      in  OMap.append nid node m
+
 diffNodes :: Node -> Node -> Maybe (Path, Node)
 diffNodes a b
   | nodesDiffer || childrenChanged = Just (Path [], b)
@@ -164,6 +192,13 @@ diffNodes a b
 newtype Path = Path
   { pathElements :: [NodeId]
   } deriving (Show, Eq, Ord, Semigroup, Monoid, ToJSON, FromJSON)
+
+split :: Path -> Maybe (Path, NodeId)
+split (Path []) = Nothing
+split (Path xs) = Just (Path (init xs), last xs)
+
+parent :: Path -> Maybe Path
+parent path = fst <$> split path
 
 -- | Try to remove a 'NodeId' from the beginning of a 'Path'.
 narrow :: NodeId -> Path -> Maybe Path

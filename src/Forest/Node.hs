@@ -20,7 +20,9 @@ module Forest.Node
   , appendAt
   , diffNodes
   , Path(..)
-  , split
+  , referencedNodeExists
+  , splitHeadTail
+  , splitInitLast
   , parent
   , narrow
   , narrowSet
@@ -157,7 +159,7 @@ replaceAt node = adjustAt $ const node
 
 -- | Delete a subnode at a specified path. Does nothing if the path is 'mempty'.
 deleteAt :: Path -> Node -> Node
-deleteAt path node = case split path of
+deleteAt path node = case splitInitLast path of
   Nothing -> node
   Just (parentPath, nodeId) -> adjustAt
     (\n -> n{nodeChildren = OMap.delete nodeId $ nodeChildren n})
@@ -193,12 +195,19 @@ newtype Path = Path
   { pathElements :: [NodeId]
   } deriving (Show, Eq, Ord, Semigroup, Monoid, ToJSON, FromJSON)
 
-split :: Path -> Maybe (Path, NodeId)
-split (Path []) = Nothing
-split (Path xs) = Just (Path (init xs), last xs)
+referencedNodeExists :: Node -> Path -> Bool
+referencedNodeExists node path = isJust $ applyPath path node
+
+splitHeadTail :: Path -> Maybe (NodeId, Path)
+splitHeadTail (Path [])     = Nothing
+splitHeadTail (Path (x:xs)) = Just (x, Path xs)
+
+splitInitLast :: Path -> Maybe (Path, NodeId)
+splitInitLast (Path []) = Nothing
+splitInitLast (Path xs) = Just (Path (init xs), last xs)
 
 parent :: Path -> Maybe Path
-parent path = fst <$> split path
+parent path = fst <$> splitInitLast path
 
 -- | Try to remove a 'NodeId' from the beginning of a 'Path'.
 narrow :: NodeId -> Path -> Maybe Path

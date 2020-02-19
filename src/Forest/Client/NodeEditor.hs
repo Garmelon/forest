@@ -3,63 +3,45 @@
 module Forest.Client.NodeEditor
   ( NodeEditor
   , getCurrentText
-  , asReply
-  , editNode
-  , replyToNode
+  , beginEdit
   , handleNodeEditorEvent
   , renderNodeEditor
   ) where
 
 import           Brick
 import           Brick.Widgets.Edit
-import qualified Data.Text                  as T
+import qualified Data.Text          as T
 import           Data.Text.Zipper
-import qualified Graphics.Vty               as Vty
+import qualified Graphics.Vty       as Vty
 import           Lens.Micro
 
-import           Forest.Client.ResourceName
+newtype NodeEditor n = NodeEditor (Editor T.Text n)
+  deriving (Show)
 
-data NodeEditor = NodeEditor
-  { neEditor :: Editor T.Text ResourceName
-  , neReply  :: Bool
-  } deriving (Show)
+getCurrentLines :: NodeEditor n -> [T.Text]
+getCurrentLines (NodeEditor e) = getEditContents e
 
-getCurrentText :: NodeEditor -> [T.Text]
-getCurrentText = getEditContents . neEditor
+getCurrentText :: NodeEditor n -> T.Text
+getCurrentText = T.intercalate "\n" . getCurrentLines
 
-asReply :: NodeEditor -> Bool
-asReply = neReply
+beginEdit :: n -> T.Text -> NodeEditor n
+beginEdit name = NodeEditor . applyEdit gotoEOL . editorText name Nothing
 
-editNode :: T.Text -> NodeEditor
-editNode text = NodeEditor
-  { neEditor = applyEdit gotoEOL $ editorText RnEditor Nothing text
-  , neReply = False
-  }
+edit :: (TextZipper T.Text -> TextZipper T.Text) -> NodeEditor n -> EventM n (NodeEditor n)
+edit z (NodeEditor e) = pure $ NodeEditor $ applyEdit z e
 
-replyToNode :: NodeEditor
-replyToNode = NodeEditor
-  { neEditor = editorText RnEditor Nothing ""
-  , neReply = True
-  }
-
-edit :: (TextZipper T.Text -> TextZipper T.Text) -> NodeEditor -> EventM ResourceName NodeEditor
-edit z ne = pure $ ne{neEditor = applyEdit z $ neEditor ne}
-
-handleNodeEditorEvent :: Vty.Event -> NodeEditor -> EventM ResourceName NodeEditor
+handleNodeEditorEvent :: Vty.Event -> NodeEditor n -> EventM n (NodeEditor n)
 handleNodeEditorEvent (Vty.EvKey Vty.KHome _) ne = edit gotoBOL ne
 handleNodeEditorEvent (Vty.EvKey Vty.KEnd _) ne = edit gotoEOL ne
-handleNodeEditorEvent event ne = do
-  newEditor <- handleEditorEvent event $ neEditor ne
-  pure ne{neEditor = newEditor}
+handleNodeEditorEvent event (NodeEditor e) = NodeEditor <$> handleEditorEvent event e
 
-renderNodeEditor :: NodeEditor -> Widget ResourceName
-renderNodeEditor ne = makeVisible $ vLimit height $ renderEditor renderFunc True ed
+renderLines :: [T.Text] -> Widget n
+renderLines = vBox . map (\t -> txt $ if T.null t then " " else t)
+
+renderNodeEditor :: (Ord n, Show n) => NodeEditor n -> Widget n
+renderNodeEditor ne@(NodeEditor e) =
+  makeVisible $ vLimit height $ renderEditor renderLines True e
   where
-    ed = neEditor ne
-
-    height = length $ getCurrentText ne
-    renderFunc :: [T.Text] -> Widget ResourceName
-    renderFunc = vBox . map (\t -> if T.null t then txt " " else txt t)
-
-    (row, col) = cursorPosition $ ed ^. editContentsL
+    height = length $ getCurrentLines ne
+    (row, col) = cursorPosition $ e ^. editContentsL
     makeVisible = visibleRegion (Location (col, row)) (1, 1)

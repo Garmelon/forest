@@ -26,12 +26,11 @@ module Forest.Client.UiState
   , renderUiState
   ) where
 
-import qualified Graphics.Vty as Vty
 import           Brick
-import           Control.Monad
 import           Data.Maybe
 import qualified Data.Set                 as Set
 import qualified Data.Text                as T
+import qualified Graphics.Vty             as Vty
 
 import           Forest.Client.NodeEditor
 import           Forest.Client.NodeUtil
@@ -130,7 +129,7 @@ foldAtFocus s =
 
 editNode :: Bool -> Path -> UiState n -> UiState n
 editNode reply path s =
-  let text = maybe "" nodeText $ applyPath path $ uiRootNode s
+  let text = if reply then "" else nodeText $ getFocusedNode s
       editorInfo = EditorInfo
         { eiEditor = beginEdit (uiEditorName s) text
         , eiPath   = path

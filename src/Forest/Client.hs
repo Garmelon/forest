@@ -57,14 +57,14 @@ onUiState' cs f = do
 onKeyWithoutEditor :: ClientState -> Vty.Event -> ClientM (Next ClientState)
 onKeyWithoutEditor cs (Vty.EvKey k _)
   | k `elem` quitKeys   = halt cs
-  | k `elem` foldKeys   = onUiState cs foldAtFocus
+  | k `elem` foldKeys   = onUiState cs toggleFoldAtFocus
   | k `elem` upKeys     = onUiState cs moveFocusUp
   | k `elem` downKeys   = onUiState cs moveFocusDown
   | k `elem` editKeys   = onUiState cs editCurrentNode
   | k `elem` deleteKeys = do
       liftIO $ sendPacket (csConn cs) $ ClientDelete (getFocusedPath $ csUiState cs)
       continue cs
-  | k `elem` replyKeys  = onUiState cs replyToCurrentNode
+  | k `elem` replyKeys  = onUiState cs (replyToCurrentNode . unfoldAtFocus)
   | k `elem` replyKeys' = onUiState cs replyAfterCurrentNode
   | k `elem` actKeys    = do
       liftIO $ sendPacket (csConn cs) $ ClientAct (getFocusedPath $ csUiState cs)

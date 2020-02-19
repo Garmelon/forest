@@ -10,6 +10,8 @@ module Forest.Client.UiState
   , moveFocusUp
   , moveFocusDown
   , foldAtFocus
+  , unfoldAtFocus
+  , toggleFoldAtFocus
   -- ** The node editor
   -- *** Creating
   , editCurrentNode
@@ -81,7 +83,7 @@ findValidParent :: Node -> Path -> Path
 findValidParent _ (Path []) = Path []
 findValidParent node (Path (x:xs)) = case applyId x node of
   Nothing    -> Path []
-  Just child -> findValidParent child (Path xs)
+  Just child -> Path [x] <> findValidParent child (Path xs)
 
 -- | Modify the focused path so it always points to an existing node.
 validateFocused :: UiState n -> UiState n
@@ -119,13 +121,15 @@ moveFocusDown s =
   in  s {uiFocused = findNextNode foldedRootNode $ uiFocused s}
 
 foldAtFocus :: UiState n -> UiState n
-foldAtFocus s =
-  let focused = uiFocused s
-      unfolded = uiUnfolded s
-      newUnfolded = if focused `Set.member` unfolded
-        then Set.delete focused unfolded
-        else Set.insert focused unfolded
-  in validateUnfolded s {uiUnfolded = newUnfolded}
+foldAtFocus s = validateUnfolded $ s {uiUnfolded = Set.delete (uiFocused s) (uiUnfolded s)}
+
+unfoldAtFocus :: UiState n -> UiState n
+unfoldAtFocus s = validateUnfolded $ s {uiUnfolded = Set.insert (uiFocused s) (uiUnfolded s)}
+
+toggleFoldAtFocus :: UiState n -> UiState n
+toggleFoldAtFocus s = if uiFocused s `Set.member` uiUnfolded s
+  then foldAtFocus s
+  else unfoldAtFocus s
 
 editNode :: Bool -> Path -> UiState n -> UiState n
 editNode reply path s =

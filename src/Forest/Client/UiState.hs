@@ -212,25 +212,21 @@ renderNode focused node =
   decorateExpand (not $ OMap.null $ nodeChildren node) $
   txtWrap $ nodeText node
 
-beingEdited :: UiState n -> Path -> Maybe (EditorInfo n)
-beingEdited s path = do
-  e <- uiEditor s
-  if eiReply e
-    then do
-      p <- parent path
-      guard $ p == eiPath e
-    else
-      guard $ path == eiPath e
-  pure e
-
 nodeToTree :: (Ord n, Show n) => UiState n -> Path -> Node -> Maybe [WidgetTree n] -> WidgetTree n
-nodeToTree s path node = withChildren $ case beingEdited s path of
-  Just e  -> renderNodeEditor $ eiEditor e
-  Nothing -> renderNode isFocused node
+nodeToTree s path node maybeChildren = case uiEditor s of
+  Nothing ->
+    let isFocused = path == uiFocused s
+    in  WidgetTree (renderNode isFocused node) children
+  Just e ->
+    let renderedEditor = renderNodeEditor $ eiEditor e
+        renderedEditorTree = WidgetTree renderedEditor []
+    in  if path /= eiPath e
+        then WidgetTree (renderNode False node) children
+        else if eiReply e
+             then WidgetTree (renderNode False node) $ children ++ [renderedEditorTree]
+             else WidgetTree renderedEditor children
   where
-    withChildren :: Widget n -> Maybe [WidgetTree n] -> WidgetTree n
-    withChildren nodeWidget = WidgetTree nodeWidget . fromMaybe []
-    isFocused = isNothing (uiEditor s) && (path == uiFocused s)
+    children = fromMaybe [] maybeChildren
 
 renderUiState :: (Ord n, Show n) => IndentOptions -> UiState n -> Widget n
 renderUiState opts s =

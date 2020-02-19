@@ -33,7 +33,13 @@ foldVisibleNodes = foldVisibleNodes' mempty
 
 -- | Keep only those nodes that are visible according to the 'Unfolded' set.
 applyFolds :: Unfolded -> Node -> Node
-applyFolds = foldVisibleNodes (\_ node _ -> node)
+applyFolds unfolded node
+  | mempty `Set.member` unfolded = node {nodeChildren = children}
+  | otherwise = node {nodeChildren = OMap.empty}
+  where
+    children =
+      OMap.mapWithKey (\nid -> applyFolds $ narrowSet nid unfolded) $
+      nodeChildren node
 
 -- | Return the 'Path's to a node and its subnodes in the order they would be
 -- displayed in.

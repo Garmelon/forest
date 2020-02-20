@@ -3,7 +3,9 @@ module Forest.Client.Options
   , clientOptionsParserInfo
   ) where
 
+import           Data.List
 import           Options.Applicative
+import           Options.Applicative.Help.Pretty
 
 data ClientOptions = ClientOptions
   { clientHostName :: String
@@ -40,5 +42,26 @@ parser = ClientOptions
       <> help "This flag disables ssl on outgoing websocket connections"
       )
 
+keyBindings :: String
+keyBindings = intercalate "\n"
+  [ "Key bindings:"
+  , "  exit                     q, esc"
+  , "  move cursor              up/down, j/k"
+  , "  toggle fold              tab"
+  , "  edit node                e"
+  , "  delete node              d"
+  , "  new child (reply)        r"
+  , "  new sibling              R"
+  , "  perform action           a, enter, space"
+  , ""
+  , "Editor key bindings:"
+  , "  confirm edit             enter"
+  , "  abort edit               esc"
+  , "  insert newline           ctrl+n"
+  ]
+
 clientOptionsParserInfo :: ParserInfo ClientOptions
-clientOptionsParserInfo = info (helper <*> parser) mempty
+clientOptionsParserInfo = info (helper <*> parser)
+  (  fullDesc
+  <> footerDoc (Just $ string keyBindings)
+  )

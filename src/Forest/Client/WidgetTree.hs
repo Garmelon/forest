@@ -3,6 +3,7 @@
 module Forest.Client.WidgetTree
   ( WidgetTree(..)
   , renderWidgetTree
+  , treeLineAttr
   , IndentOptions(..)
   , boxDrawingBranching
   , boxDrawingLine
@@ -15,6 +16,7 @@ import           Brick.BorderMap
 import           Control.Monad.Trans.Reader
 import qualified Data.Text                  as T
 import qualified Graphics.Vty               as Vty
+import           Lens.Micro
 
 data WidgetTree n = WidgetTree (Widget n) [WidgetTree n]
 
@@ -50,9 +52,10 @@ indentWith firstLine otherLines wrapped = Widget
     renderWidget = do
       context <- ask
       result <- render $ hLimit (availWidth context - maxWidth) wrapped
-      let resultHeight = Vty.imageHeight $ image result
+      let attribute = attrMapLookup treeLineAttr $ context ^. ctxAttrMapL
+          resultHeight = Vty.imageHeight $ image result
           textLines = firstLine : replicate (resultHeight - 1) otherLines
-          leftImage = Vty.vertCat $ map (Vty.text' Vty.defAttr) textLines
+          leftImage = Vty.vertCat $ map (Vty.text' attribute) textLines
           newImage = leftImage Vty.<|> image result
           newResult = offsetResult (Location (maxWidth, 0)) $ result{image=newImage}
       pure newResult
@@ -67,6 +70,9 @@ indent opts widgets = vBox $ reverse $ case reverse widgets of
 renderWidgetTree :: IndentOptions -> WidgetTree n -> Widget n
 renderWidgetTree opts (WidgetTree node children) =
   node <=> indent opts (map (renderWidgetTree opts) children)
+
+treeLineAttr :: AttrName
+treeLineAttr = "treeLine"
 
 -- | These options control how a tree is rendered. For more information on how
 -- the various options are used, try rendering a tree with 'boxDrawingBranhing'

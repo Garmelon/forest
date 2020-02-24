@@ -124,9 +124,10 @@ clientHandleEvent cs _ = continue cs
 
 clientAttrMap :: AttrMap
 clientAttrMap = attrMap Vty.defAttr
-  [ ("expand", Vty.currentAttr `Vty.withStyle` Vty.bold `Vty.withForeColor` Vty.yellow)
-  , ("focus", Vty.currentAttr `Vty.withBackColor` Vty.blue)
-  , ("flags", Vty.currentAttr `Vty.withForeColor` Vty.brightBlack)
+  [ ("expand", Vty.defAttr `Vty.withStyle` Vty.bold `Vty.withForeColor` Vty.yellow)
+  , ("focus", Vty.defAttr `Vty.withBackColor` Vty.blue)
+  , ("flags", Vty.defAttr `Vty.withForeColor` Vty.brightBlack)
+  , (treeLineAttr, Vty.defAttr `Vty.withForeColor` Vty.brightBlack)
   ]
 
 clientApp :: App ClientState Event ResourceName

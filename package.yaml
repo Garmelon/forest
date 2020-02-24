@@ -20,6 +20,7 @@ dependencies:
 - containers
 - microlens
 - optparse-applicative
+- safe
 - text
 - text-zipper
 - transformers

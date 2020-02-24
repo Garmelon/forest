@@ -9,6 +9,10 @@ module Forest.Client.UiState
   , replaceRootNode
   , moveFocusUp
   , moveFocusDown
+  , moveFocusToFirstChild
+  , moveFocusToLastChild
+  , moveFocusToFirstSibling
+  , moveFocusToLastSibling
   , foldAtFocus
   , unfoldAtFocus
   , toggleFoldAtFocus
@@ -33,6 +37,7 @@ import           Data.Maybe
 import qualified Data.Set                 as Set
 import qualified Data.Text                as T
 import qualified Graphics.Vty             as Vty
+import           Safe
 
 import           Forest.Client.NodeEditor
 import           Forest.Client.NodeUtil
@@ -110,15 +115,42 @@ validate = validateEditor . validateFocused . validateUnfolded
 replaceRootNode :: Node -> UiState n -> UiState n
 replaceRootNode node s = validate s {uiRootNode = node}
 
-moveFocusUp :: UiState n -> UiState n
-moveFocusUp s =
+moveFocus :: (Node -> Path -> Path) -> UiState n -> UiState n
+moveFocus f s =
   let foldedRootNode = applyFolds (uiUnfolded s) (uiRootNode s)
-  in  s {uiFocused = findPrevNode foldedRootNode $ uiFocused s}
+  in  validateFocused s {uiFocused = f foldedRootNode $ uiFocused s}
+
+moveFocusUp :: UiState n -> UiState n
+moveFocusUp = moveFocus findPrevNode
 
 moveFocusDown :: UiState n -> UiState n
-moveFocusDown s =
-  let foldedRootNode = applyFolds (uiUnfolded s) (uiRootNode s)
-  in  s {uiFocused = findNextNode foldedRootNode $ uiFocused s}
+moveFocusDown = moveFocus findNextNode
+
+moveFocusToParent :: UiState n -> UiState n
+moveFocusToParent = moveFocus $ \_ focused -> fromMaybe focused $ parent focused
+
+moveFocusToChild :: ([NodeId] -> Maybe NodeId) -> UiState n -> UiState n
+moveFocusToChild f = moveFocus $ \node focused -> fromMaybe focused $ do
+  siblings <- nodeChildren <$> applyPath focused node
+  firstSiblingName <- f $ OMap.keys siblings
+  pure $ focused <> Path [firstSiblingName]
+
+moveFocusToFirstChild :: UiState n -> UiState n
+moveFocusToFirstChild = moveFocusToChild headMay
+
+moveFocusToLastChild :: UiState n -> UiState n
+moveFocusToLastChild = moveFocusToChild lastMay
+
+moveFocusToSibling :: ([NodeId] -> Maybe NodeId) -> UiState n -> UiState n
+moveFocusToSibling f s
+  | uiFocused s == mempty = s
+  | otherwise = moveFocusToChild f $ moveFocusToParent s
+
+moveFocusToFirstSibling :: UiState n -> UiState n
+moveFocusToFirstSibling = moveFocusToSibling headMay
+
+moveFocusToLastSibling :: UiState n -> UiState n
+moveFocusToLastSibling = moveFocusToSibling lastMay
 
 foldAtFocus :: UiState n -> UiState n
 foldAtFocus s = validateUnfolded $ s {uiUnfolded = Set.delete (uiFocused s) (uiUnfolded s)}
@@ -148,14 +180,14 @@ editCurrentNode s = editNode False (uiFocused s) s
 
 -- | Reply to the currently focused node. Discards any current editor status.
 replyToCurrentNode :: UiState n -> UiState n
-replyToCurrentNode s = editNode True (uiFocused s) s
+replyToCurrentNode s = editNode True (uiFocused s) $ moveFocusToLastChild s
 
 -- | Reply in parallel to the currently focused node, unless it is the root node
 -- (in which case no action is taken).
 replyAfterCurrentNode :: UiState n -> UiState n
 replyAfterCurrentNode s = case parent $ uiFocused s of
   Nothing   -> s
-  Just path -> editNode True path s
+  Just path -> editNode True path $ moveFocusToLastSibling s
 
 isEditorActive :: UiState n -> Bool
 isEditorActive = isJust . uiEditor

@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Forest.TreeModule.SharedEditing
+module Forest.Server.TreeModule.SharedEditing
   ( SharedEditingModule
   , sharedEditingModule
   ) where
@@ -9,9 +9,9 @@ module Forest.TreeModule.SharedEditing
 import           Control.Concurrent.MVar
 import           Control.Monad
 
-import           Forest.Broadcast
 import           Forest.Node
-import           Forest.TreeModule
+import           Forest.Server.Broadcast
+import           Forest.Server.TreeModule
 import           Forest.Util
 
 data SharedEditingModule r = SharedEditingModule

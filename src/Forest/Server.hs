@@ -8,11 +8,11 @@ module Forest.Server
 
 import           Control.Concurrent.Chan
 import           Control.Exception
-import qualified Network.WebSockets      as WS
+import qualified Network.WebSockets       as WS
 
 import           Forest.Api
 import           Forest.Node
-import           Forest.TreeModule
+import           Forest.Server.TreeModule
 import           Forest.Util
 
 {- Thread that sends updates to the client -}

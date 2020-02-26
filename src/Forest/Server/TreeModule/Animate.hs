@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
-module Forest.TreeModule.Animate
+module Forest.Server.TreeModule.Animate
   ( AnimateModule
   , animateModule
   ) where
@@ -9,7 +9,7 @@ module Forest.TreeModule.Animate
 import           Control.Concurrent
 
 import           Forest.Node
-import           Forest.TreeModule
+import           Forest.Server.TreeModule
 import           Forest.Util
 
 data AnimateModule r = AnimateModule

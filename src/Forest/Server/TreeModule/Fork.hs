@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE RankNTypes                #-}
 
-module Forest.TreeModule.Fork
+module Forest.Server.TreeModule.Fork
   ( ForkModule
   , ProngConstructor(..)
   , forkModule
@@ -16,7 +16,7 @@ import qualified Data.Text                as T
 
 import           Forest.Node
 import qualified Forest.OrderedMap        as OMap
-import           Forest.TreeModule
+import           Forest.Server.TreeModule
 
 data Prong = forall r a . TreeModule a r => Prong (a r)
 

@@ -6,7 +6,7 @@
 -- All functions included in this module should be threadsafe. Be sure to read
 -- the warning on the 'broadcast' function.
 
-module Forest.Broadcast
+module Forest.Server.Broadcast
   ( Broadcaster
   , Listener
   , newBroadcaster

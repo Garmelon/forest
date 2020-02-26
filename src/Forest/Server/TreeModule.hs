@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Forest.TreeModule
+module Forest.Server.TreeModule
   ( TreeModule(..)
   , ModuleConstructor
   ) where

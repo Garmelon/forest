@@ -1,14 +1,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
-module Forest.TreeModule.Const
+module Forest.Server.TreeModule.Const
   ( ConstModule
   , constModule
   , projectDescriptionNode
   ) where
 
 import           Forest.Node
-import           Forest.TreeModule
+import           Forest.Server.TreeModule
 
 data ConstModule r = ConstModule
 

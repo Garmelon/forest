@@ -3,14 +3,14 @@
 module Main where
 
 import           Control.Concurrent.MVar
-import qualified Network.WebSockets              as WS
+import qualified Network.WebSockets                     as WS
 
-import           Forest.Broadcast
 import           Forest.Node
 import           Forest.Server
-import           Forest.TreeModule.Const
-import           Forest.TreeModule.Fork
-import           Forest.TreeModule.SharedEditing
+import           Forest.Server.Broadcast
+import           Forest.Server.TreeModule.Const
+import           Forest.Server.TreeModule.Fork
+import           Forest.Server.TreeModule.SharedEditing
 
 pingDelay :: Int
 pingDelay = 10

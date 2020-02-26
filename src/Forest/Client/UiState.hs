@@ -33,6 +33,7 @@ module Forest.Client.UiState
   ) where
 
 import           Brick
+import           Data.List
 import           Data.Maybe
 import qualified Data.Set                 as Set
 import qualified Data.Text                as T
@@ -113,7 +114,29 @@ validate :: UiState n -> UiState n
 validate = validateEditor . validateFocused . validateUnfolded
 
 replaceRootNode :: Node -> UiState n -> UiState n
-replaceRootNode node s = validate s {uiRootNode = node}
+replaceRootNode node s = validate s { uiRootNode = node
+  , uiFocused = findNextValidNode (uiRootNode s) node (uiFocused s)
+  }
+
+-- | Find a node that is close to the previously focused node, taking into
+-- account its previous position in the tree.
+findNextValidNode :: Node -> Node -> Path -> Path
+findNextValidNode _ _ (Path []) = Path []
+findNextValidNode from to (Path (x:xs)) = fromMaybe (Path []) $ do
+  fromNode <- applyId x from
+  case applyId x to of
+    Just toNode -> pure $ Path [x] <> findNextValidNode fromNode toNode (Path xs)
+    Nothing -> do
+      fromIdx <- elemIndex x $ OMap.keys $ nodeChildren from
+      let toKeys = OMap.keys $ nodeChildren to
+      x' <- getValueClosestToIndex fromIdx toKeys
+      pure $ Path [x']
+  where
+    -- Slightly unsafe code, but it should be fine
+    getValueClosestToIndex idx list
+      | length list > idx = Just $ list !! idx
+      | null list         = Nothing
+      | otherwise         = Just $ last list
 
 moveFocus :: (Node -> Path -> Path) -> UiState n -> UiState n
 moveFocus f s =

@@ -268,7 +268,7 @@ renderNode focused node =
   decorateFlags (nodeFlags node) $
   decorateFocus focused $
   decorateExpand (not $ OMap.null $ nodeChildren node) $
-  txtWrap $ nodeText node
+  padRight Max $ txtWrap $ nodeText node
 
 nodeToTree :: (Ord n, Show n) => UiState n -> Path -> Node -> Maybe [WidgetTree n] -> WidgetTree n
 nodeToTree s path node maybeChildren = case uiEditor s of

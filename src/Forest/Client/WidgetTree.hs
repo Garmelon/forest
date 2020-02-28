@@ -2,6 +2,7 @@
 
 module Forest.Client.WidgetTree
   ( WidgetTree(..)
+  , renderWidgetTreeWith
   , renderWidgetTree
   , treeLineAttr
   , IndentOptions(..)
@@ -37,61 +38,78 @@ indentWith indentAttrName firstLine otherLines wrapped =
         result = (addResultOffset offset rightResult) {image=combinedImage}
     pure result
 
-indent :: IndentOptions -> [Widget n] -> Widget n
-indent opts widgets = vBox $ reverse $ case reverse widgets of
+indent :: AttrName -> IndentOptions -> [Widget n] -> Widget n
+indent indentAttrName opts widgets = vBox $ reverse $ case reverse widgets of
   [] -> []
   (w:ws) ->
-    indentWith treeLineAttr (lastBranch opts) (afterLastBranch opts) w :
-    map (indentWith treeLineAttr (inlineBranch opts) (noBranch opts)) ws
+    indentWith indentAttrName (indentLastNodeFirstLine opts) (indentLastNodeRest opts) w :
+    map (indentWith indentAttrName (indentNodeFirstLine opts) (indentNodeRest opts)) ws
+
+renderWidgetTreeWith :: AttrName -> IndentOptions -> WidgetTree n -> Widget n
+renderWidgetTreeWith indentAttrName opts (WidgetTree node children) =
+  node <=> indent indentAttrName opts (map (renderWidgetTreeWith indentAttrName opts) children)
 
 renderWidgetTree :: IndentOptions -> WidgetTree n -> Widget n
-renderWidgetTree opts (WidgetTree node children) =
-  node <=> indent opts (map (renderWidgetTree opts) children)
+renderWidgetTree = renderWidgetTreeWith treeLineAttr
 
+-- | The attribute that 'renderWidgetTree' uses.
 treeLineAttr :: AttrName
 treeLineAttr = "treeLine"
 
--- | These options control how a tree is rendered. For more information on how
--- the various options are used, try rendering a tree with 'boxDrawingBranhing'
--- and inspect the results.
+-- | These options control how a tree is rendered.
 --
--- Warning: The options *must* be single line strings and *must not* contain
+-- In the following example, the indent options are set to @'IndentOptions' "a" "b" "c" "d"@:
+--
+-- > a This is the first node.
+-- > b c It has a child.
+-- > a This is a...
+-- > b multiline...
+-- > b node.
+-- > c This is the last node.
+-- > d c It has one child.
+-- > d c And another one.
+--
+-- Warning: The options /must/ be single line strings and /must not/ contain
 -- newlines of any sort.
 data IndentOptions = IndentOptions
-  { noBranch        :: T.Text
-  , inlineBranch    :: T.Text
-  , lastBranch      :: T.Text
-  , afterLastBranch :: T.Text
+  { indentNodeFirstLine     :: T.Text
+  -- ^ This is prepended to the first line of a node.
+  , indentNodeRest          :: T.Text
+  -- ^ This is prepended to all other lines of a node, including its subnodes.
+  , indentLastNodeFirstLine :: T.Text
+  -- ^ This is prepended to the first line of the last node.
+  , indentLastNodeRest      :: T.Text
+  -- ^ This is prepended to all other lines of the last node, including its subnodes.
   } deriving (Show, Eq)
 
 boxDrawingBranching :: IndentOptions
 boxDrawingBranching = IndentOptions
-  { noBranch        = "│ "
-  , inlineBranch    = "├╴"
-  , lastBranch      = "└╴"
-  , afterLastBranch = "  "
+  { indentNodeFirstLine     = "├╴"
+  , indentNodeRest          = "│ "
+  , indentLastNodeFirstLine = "└╴"
+  , indentLastNodeRest      = "  "
   }
 
 boxDrawingLine :: IndentOptions
 boxDrawingLine = IndentOptions
-  { noBranch        = "│ "
-  , inlineBranch    = "│ "
-  , lastBranch      = "│ "
-  , afterLastBranch = "│ "
+  { indentNodeFirstLine     = "│ "
+  , indentNodeRest          = "│ "
+  , indentLastNodeFirstLine = "│ "
+  , indentLastNodeRest      = "│ "
   }
 
 asciiBranching :: IndentOptions
 asciiBranching = IndentOptions
-  { noBranch        = "| "
-  , inlineBranch    = "+-"
-  , lastBranch      = "+-"
-  , afterLastBranch = "  "
+  { indentNodeFirstLine     = "+-"
+  , indentNodeRest          = "| "
+  , indentLastNodeFirstLine = "+-"
+  , indentLastNodeRest      = "  "
   }
 
 asciiLine :: IndentOptions
 asciiLine = IndentOptions
-  { noBranch        = "| "
-  , inlineBranch    = "| "
-  , lastBranch      = "| "
-  , afterLastBranch = "| "
+  { indentNodeFirstLine     = "| "
+  , indentNodeRest          = "| "
+  , indentLastNodeFirstLine = "| "
+  , indentLastNodeRest      = "| "
   }

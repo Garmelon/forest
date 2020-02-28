@@ -12,60 +12,38 @@ module Forest.Client.WidgetTree
   ) where
 
 import           Brick
-import           Brick.BorderMap
-import           Control.Monad.Trans.Reader
 import qualified Data.Text                  as T
 import qualified Graphics.Vty               as Vty
 import           Lens.Micro
 
 data WidgetTree n = WidgetTree (Widget n) [WidgetTree n]
 
-addLoc :: Location -> Location -> Location
-addLoc l1 l2 =
-  let (x1, y1) = loc l1
-      (x2, y2) = loc l2
-  in  Location (x1 + x2, y1 + y2)
-
-offsetResult :: Location -> Result n -> Result n
-offsetResult offset result = result
-  { cursors = map offsetCursor $ cursors result
-  , visibilityRequests = map offsetVr $ visibilityRequests result
-  , extents = map offsetExtent $ extents result
-  , borders = translate offset $ borders result
-  }
-  where
-    offsetCursor c = c{cursorLocation = addLoc offset $ cursorLocation c}
-    offsetVr vr = vr{vrPosition = addLoc offset $ vrPosition vr}
-    offsetExtent e = e
-      { extentUpperLeft = addLoc offset $ extentUpperLeft e
-      , extentOffset    = addLoc offset $ extentOffset e
-      }
-
-indentWith :: T.Text -> T.Text -> Widget n -> Widget n
-indentWith firstLine otherLines wrapped = Widget
-  { hSize = hSize wrapped
-  , vSize = vSize wrapped
-  , render = renderWidget
-  }
-  where
-    maxWidth = max (T.length firstLine) (T.length otherLines)
-    renderWidget = do
-      context <- ask
-      result <- render $ hLimit (availWidth context - maxWidth) wrapped
-      let attribute = attrMapLookup treeLineAttr $ context ^. ctxAttrMapL
-          resultHeight = Vty.imageHeight $ image result
-          textLines = firstLine : replicate (resultHeight - 1) otherLines
-          leftImage = Vty.vertCat $ map (Vty.text' attribute) textLines
-          newImage = leftImage Vty.<|> image result
-          newResult = offsetResult (Location (maxWidth, 0)) $ result{image=newImage}
-      pure newResult
+indentWith :: AttrName -> T.Text -> T.Text -> Widget n -> Widget n
+-- The "left" variables are for rendering the indentation text, the "right"
+-- variables are for the rendered wrapped widget.
+indentWith indentAttrName firstLine otherLines wrapped =
+  Widget (hSize wrapped) (vSize wrapped) $ do
+    let leftWidth = max (T.length firstLine) (T.length otherLines)
+    context <- getContext
+    rightResult <- render $ hLimit (availWidth context - leftWidth) wrapped
+    let rightImage = image rightResult
+        -- Construct the Vty image containing the indentation text
+        height = Vty.imageHeight rightImage
+        leftLines = firstLine : replicate (height - 1) otherLines
+        leftAttribute = attrMapLookup indentAttrName $ context ^. ctxAttrMapL
+        leftImage = Vty.vertCat $ map (Vty.text' leftAttribute) leftLines
+        -- Add the indentation text to the left of the result image
+        combinedImage = leftImage Vty.<|> image rightResult
+        offset = Location (leftWidth, 0)
+        result = addResultOffset offset rightResult & imageL .~ combinedImage
+    pure result
 
 indent :: IndentOptions -> [Widget n] -> Widget n
 indent opts widgets = vBox $ reverse $ case reverse widgets of
   [] -> []
   (w:ws) ->
-    indentWith (lastBranch opts) (afterLastBranch opts) w :
-    map (indentWith (inlineBranch opts) (noBranch opts)) ws
+    indentWith treeLineAttr (lastBranch opts) (afterLastBranch opts) w :
+    map (indentWith treeLineAttr (inlineBranch opts) (noBranch opts)) ws
 
 renderWidgetTree :: IndentOptions -> WidgetTree n -> Widget n
 renderWidgetTree opts (WidgetTree node children) =

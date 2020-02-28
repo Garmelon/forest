@@ -18,7 +18,6 @@ dependencies:
 - async
 - brick
 - containers
-- microlens
 - optparse-applicative
 - safe
 - text

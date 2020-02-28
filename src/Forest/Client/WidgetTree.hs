@@ -14,7 +14,6 @@ module Forest.Client.WidgetTree
 import           Brick
 import qualified Data.Text                  as T
 import qualified Graphics.Vty               as Vty
-import           Lens.Micro
 
 data WidgetTree n = WidgetTree (Widget n) [WidgetTree n]
 
@@ -30,12 +29,12 @@ indentWith indentAttrName firstLine otherLines wrapped =
         -- Construct the Vty image containing the indentation text
         height = Vty.imageHeight rightImage
         leftLines = firstLine : replicate (height - 1) otherLines
-        leftAttribute = attrMapLookup indentAttrName $ context ^. ctxAttrMapL
+        leftAttribute = attrMapLookup indentAttrName $ ctxAttrMap context
         leftImage = Vty.vertCat $ map (Vty.text' leftAttribute) leftLines
         -- Add the indentation text to the left of the result image
         combinedImage = leftImage Vty.<|> image rightResult
         offset = Location (leftWidth, 0)
-        result = addResultOffset offset rightResult & imageL .~ combinedImage
+        result = (addResultOffset offset rightResult) {image=combinedImage}
     pure result
 
 indent :: IndentOptions -> [Widget n] -> Widget n

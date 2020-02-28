@@ -13,7 +13,6 @@ import           Brick.Widgets.Edit
 import qualified Data.Text          as T
 import           Data.Text.Zipper
 import qualified Graphics.Vty       as Vty
-import           Lens.Micro
 
 newtype NodeEditor n = NodeEditor (Editor T.Text n)
   deriving (Show)
@@ -43,5 +42,5 @@ renderNodeEditor ne@(NodeEditor e) =
   makeVisible $ vLimit height $ renderEditor renderLines True e
   where
     height = length $ getCurrentLines ne
-    (row, col) = cursorPosition $ e ^. editContentsL
+    (row, col) = cursorPosition $ editContents e
     makeVisible = visibleRegion (Location (col, row)) (1, 1)

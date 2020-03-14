@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Forest.Client.WidgetTree
+module Forest.Client.Widgets.WidgetTree
   ( WidgetTree(..)
   , renderWidgetTreeWith
   , renderWidgetTree

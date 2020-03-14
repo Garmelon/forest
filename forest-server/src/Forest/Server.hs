@@ -32,7 +32,7 @@ sendUpdatesThread conn nodeChan nodeA = do
 {- Main server application that receives and processes client packets -}
 
 receivePackets :: TreeModule a () => WS.Connection -> a () -> IO ()
-receivePackets conn treeModule = runUntilJustM $ do
+receivePackets conn treeModule = whileNothingM $ do
   packet <- receivePacket conn
   case packet of
     ClientEdit path text -> do

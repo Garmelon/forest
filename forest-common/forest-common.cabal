@@ -1,0 +1,44 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: e59723e563cf364a74b1032409ed7a9d3ecbec3a6baa34554771cb5c1a5689d9
+
+name:           forest-common
+version:        0.1.0.0
+synopsis:       A tree-based multi-user interaction thing
+description:    Please see the README at <https://github.com/Garmelon/forest#readme>
+homepage:       https://github.com/Garmelon/forest#readme
+bug-reports:    https://github.com/Garmelon/forest/issues
+author:         Garmelon <joscha@plugh.de>
+maintainer:     Garmelon <joscha@plugh.de>
+copyright:      2020 Garmelon
+license:        MIT
+build-type:     Simple
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/Garmelon/forest
+
+library
+  exposed-modules:
+      Forest.Api
+      Forest.Node
+      Forest.OrderedMap
+      Forest.Util
+  other-modules:
+      Paths_forest_common
+  hs-source-dirs:
+      src
+  build-depends:
+      aeson
+    , async
+    , base >=4.7 && <5
+    , containers
+    , text
+    , websockets
+  default-language: Haskell2010

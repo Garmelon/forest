@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Forest.Client.NodeEditor
+module Forest.Client.Widgets.NodeEditor
   ( NodeEditor
   , getCurrentText
   , beginEdit

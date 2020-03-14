@@ -1,0 +1,47 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: c0d366de2ff27f13dd69d751b47017143df332454ad700dd8fb5089d9837f1a8
+
+name:           forest-server
+version:        0.1.0.0
+synopsis:       A framework for forest servers
+description:    Please see the README at <https://github.com/Garmelon/forest#readme>
+homepage:       https://github.com/Garmelon/forest#readme
+bug-reports:    https://github.com/Garmelon/forest/issues
+author:         Garmelon <joscha@plugh.de>
+maintainer:     Garmelon <joscha@plugh.de>
+copyright:      2020 Garmelon
+license:        MIT
+build-type:     Simple
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/Garmelon/forest
+
+library
+  exposed-modules:
+      Forest.Server
+      Forest.Server.Broadcast
+      Forest.Server.TreeModule
+      Forest.Server.TreeModule.Animate
+      Forest.Server.TreeModule.Const
+      Forest.Server.TreeModule.Fork
+      Forest.Server.TreeModule.SharedEditing
+  other-modules:
+      Paths_forest_server
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , forest-common
+    , text
+    , transformers
+    , websockets
+  default-language: Haskell2010

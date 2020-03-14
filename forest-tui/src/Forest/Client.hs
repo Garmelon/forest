@@ -11,13 +11,13 @@ import           Brick.BChan
 import           Brick.Widgets.Edit
 import           Control.Monad
 import           Control.Monad.IO.Class
-import qualified Graphics.Vty             as Vty
-import qualified Network.WebSockets       as WS
+import qualified Graphics.Vty                     as Vty
+import qualified Network.WebSockets               as WS
 
 import           Forest.Api
 import           Forest.Client.UiState
 import           Forest.Client.Websocket
-import           Forest.Client.WidgetTree
+import           Forest.Client.Widgets.WidgetTree
 import           Forest.Node
 import           Forest.Util
 

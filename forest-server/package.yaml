@@ -1,0 +1,23 @@
+name: forest-server
+version: 0.1.0.0
+license: MIT
+author: Garmelon <joscha@plugh.de>
+copyright: 2020 Garmelon
+
+synopsis: A framework for forest servers
+description: Please see the README at <https://github.com/Garmelon/forest#readme>
+github: Garmelon/forest
+
+extra-source-files:
+  - README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+  - containers
+  - forest-common
+  - text
+  - transformers
+  - websockets
+
+library:
+  source-dirs: src

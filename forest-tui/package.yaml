@@ -1,0 +1,39 @@
+name: forest-tui
+version: 0.1.0.0
+license: MIT
+author: Garmelon <joscha@plugh.de>
+copyright: 2020 Garmelon
+
+synopsis: A terminal-based client for forest
+description: Please see the README at <https://github.com/Garmelon/forest#readme>
+github: Garmelon/forest
+
+extra-source-files:
+  - README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+  - brick
+  - containers
+  - forest-common
+  - optparse-applicative
+  - safe
+  - text
+  - text-zipper
+  - vty
+  - websockets
+  - wuss
+
+library:
+  source-dirs: src
+
+executables:
+  forest:
+    source-dirs: app
+    main: Main.hs
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - forest-tui

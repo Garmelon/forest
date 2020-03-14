@@ -35,16 +35,16 @@ module Forest.Client.UiState
 import           Brick
 import           Data.List
 import           Data.Maybe
-import qualified Data.Set                 as Set
-import qualified Data.Text                as T
-import qualified Graphics.Vty             as Vty
+import qualified Data.Set                         as Set
+import qualified Data.Text                        as T
+import qualified Graphics.Vty                     as Vty
 import           Safe
 
-import           Forest.Client.NodeEditor
 import           Forest.Client.NodeUtil
-import           Forest.Client.WidgetTree
+import           Forest.Client.Widgets.NodeEditor
+import           Forest.Client.Widgets.WidgetTree
 import           Forest.Node
-import qualified Forest.OrderedMap        as OMap
+import qualified Forest.OrderedMap                as OMap
 
 data EditorInfo n = EditorInfo
   { eiEditor :: !(NodeEditor n)

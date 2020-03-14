@@ -1,11 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Forest.Util
-  ( findPrev
+  (
+  -- * List operations
+    findPrev
   , findNext
+  -- * Monadic looping constructs
   , whileM
-  , runUntilJustM
+  , whileNothingM
+  -- * Multithreading helpers
   , withThread
+  -- * Websocket helper functions
   , sendPacket
   , closeWithErrorMessage
   , receivePacket
@@ -24,9 +29,6 @@ findPrev f as = fst <$> find (f . snd) (zip as $ tail as)
 findNext :: (a -> Bool) -> [a] -> Maybe a
 findNext f as = snd <$> find (f . fst) (zip as $ tail as)
 
-withThread :: IO () -> IO () -> IO ()
-withThread thread main = withAsync thread $ const main
-
 -- | Run a monadic action until it returns @False@ for the first time.
 whileM :: Monad m => m Bool -> m ()
 whileM f = do
@@ -36,12 +38,15 @@ whileM f = do
     else pure ()
 
 -- | Run a monadic action until it returns @Just a@ for the first time.
-runUntilJustM :: Monad m => m (Maybe a) -> m a
-runUntilJustM f = do
+whileNothingM :: Monad m => m (Maybe a) -> m a
+whileNothingM f = do
   result <- f
   case result of
-    Nothing -> runUntilJustM f
+    Nothing -> whileNothingM f
     Just a  -> pure a
+
+withThread :: IO () -> IO () -> IO ()
+withThread thread main = withAsync thread $ const main
 
 sendPacket :: ToJSON a => WS.Connection -> a -> IO ()
 sendPacket conn packet = WS.sendTextData conn $ encode packet

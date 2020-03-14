@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Forest - About</title>
+        <link rel="stylesheet" href="main.css">
+    </head>
+    <body>
+        <main>
+
+            <h1>Forest</h1>
+            <h2>Description</h2>
+            <p>
+                Forest is a project based around interacting with trees of
+                plain-text nodes. It has an API that is intentionally kept
+                simple. Writing your own clients or bots is explicitly
+                encouraged!
+            </p>
+            <p>
+                At the moment, there are a server and a terminal-based client
+                written in haskell, and the web-based client you're using right
+                now, made with (vanilla) javascript. The web-based client is
+                heavily based on the terminal-based client, both in look and
+                behaviour. The color scheme is just my terminal's current color
+                scheme.
+            </p>
+
+            <h2>Code and docs</h2>
+            <ol>
+                <li><a href="https://github.com/Garmelon/forest">Server and terminal-based client</a></li>
+                <li>Web-based client (coming soon)</li>
+                <li><a href="https://github.com/Garmelon/forest/blob/master/docs/API.md#api">API documentation</a></li>
+            </ol>
+
+            <h2>Usage</h2>
+            <h3>Controls</h3>
+            <pre>
+tab           - fold/unfold current node
+arrow keys/jk - move cursor
+            </pre>
+            <h3>Permissions</h3>
+            <p>
+                A node's permissions are displayed at the right side of the
+                screen, like this:
+                <span style="color: var(--bright-black);">(edra)</span>.
+                If a permission is set, its character is displayed. Otherwise, a
+                dash is displayed in its place. Only when a permission is set
+                can its action be performed.
+            </p>
+            <pre>
+e (edit)   - edit a node's text
+d (delete) - delete a node
+r (reply)  - reply to a node
+a (act)    - perform a node-specific action
+            </pre>
+            <h3>Colors</h3>
+            <p>
+                The cursor position is marked by a
+                <span style="background-color: var(--blue);">blue background</span>.
+                If a node is colored
+                <span style="color: var(--yellow); font-weight: bold;">yellow</span>,
+                it has child nodes.
+            </p>
+
+        </main>
+    </body>
+</html>

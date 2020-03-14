@@ -1,0 +1,76 @@
+html {
+    /* My terminal's color scheme */
+    --background: #000000;
+    --foreground: #babdb6;
+    --black: #2e3436;
+    --bright-black: #555753;
+    --red: #cc0000;
+    --bright-red: #ef2929;
+    --green: #4e9a06;
+    --bright-green: #8ae234;
+    --yellow: #c4a000;
+    --bright-yellow: #fce94f;
+    --blue: #3465a4;
+    --bright-blue: #729fcf;
+    --magenta: #75507b;
+    --bright-magenta: #ad7fa8;
+    --cyan: #06989a;
+    --bright-cyan: #34e2e2;
+    --white: #d3d7cf;
+    --bright-white: #eeeeec;
+
+    font-family: monospace;
+    font-size: 16px;
+    color: var(--foreground);
+    background-color: var(--background);
+}
+body {
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 2em;
+}
+h1, h2, h3, h4, h5, h6 {
+    color: var(--white);
+    margin-top: 1.5em;
+}
+h1 {
+    margin-top: 0;
+    font-size: 2em;
+}
+h2 {
+    text-decoration: underline;
+}
+a {
+    color: var(--bright-blue);
+}
+a:visited {
+    color: var(--bright-magenta);
+}
+/* Input elements */
+input[type="checkbox"] {
+    display: none;
+}
+input[type="checkbox"] + label::before {
+    content: "[_] ";
+    font-weight: bold;
+}
+input[type="checkbox"]:checked + label::before {
+    content: "[X] ";
+}
+button, textarea {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background-color: inherit;
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+}
+button {
+    font-weight: bold;
+}
+textarea {
+    color: var(--foreground);
+    background-color: var(--bright-black);
+}

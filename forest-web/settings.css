@@ -1,0 +1,16 @@
+#settings {
+    position: fixed;
+    bottom: 0;
+    transition: all 0.2s ease-out;
+    transform: translateY(100%);
+}
+#settings a {
+    color: var(--white);
+}
+#settings > button, #settings > form {
+    padding: 1ch;
+    background-color: var(--magenta);
+}
+#settings > button {
+    font-weight: bold;
+}

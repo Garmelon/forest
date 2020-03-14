@@ -1,0 +1,71 @@
+.node-line {
+    display: flex;
+}
+.node-text {
+    flex-grow: 1;
+}
+.node-permissions {
+    color: var(--bright-black);
+    margin-left: 1ch;
+}
+.node textarea {
+    width: 100%;
+    resize: none;
+}
+
+/* Special display states a node can be in */
+.has-children > .node-line > .node-text {
+    font-weight: bold;
+    color: var(--yellow);
+}
+.has-cursor > .node-line > .node-text {
+    background-color: var(--blue);
+}
+.has-editor > .node-line {
+    display: none;
+}
+.is-folded > .node-children {
+    display: none;
+}
+
+/* Fancy tree lines */
+.node, .node::before {
+    border-color: var(--bright-black);
+    border-width: 2px;
+}
+.node-children > .node {
+    position: relative; /* .node is containing block for its .node::before */
+    margin-left: calc(0.5ch - 1px);
+    padding-left: calc(1.5ch - 1px);
+    border-left-style: solid;
+}
+.node-children > .node:last-child {
+    padding-left: calc(1.5ch + 1px);
+    border-left-style: none;
+}
+.node-children > .node::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(1ch - 1px);
+    height: calc(0.6em - 1px);
+    border-bottom-style: solid;
+}
+.node-children > .node:last-child::before {
+    border-left-style: solid;
+    transition: all 0.4s;
+}
+
+/* Curvy lines */
+.curvy .node:last-child::before {
+    border-bottom-left-radius: 6px;
+}
+
+/* About link in bottom right corner */
+#about {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    margin: 1ch;
+}

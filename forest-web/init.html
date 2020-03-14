@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Forest</title>
+        <link rel="stylesheet" href="main.css">
+        <link rel="stylesheet" href="node.css">
+        <link rel="stylesheet" href="settings.css">
+        <script defer src="node.js"></script>
+        <script defer src="settings.js"></script>
+    </head>
+    <body>
+
+        <div id="root-node-container">
+            <div class="node">
+                <div class="node-line">
+                    <span class="node-text">Please enable javascript.</span>
+                    <span class="node-permissions">(----)</span>
+                </div>
+                <div class="node-children"></div>
+            </div>
+        </div>
+
+        <div id="settings">
+            <button>Settings</button>
+            <form>
+                <div>
+                    <input type="checkbox" id="curvy-lines-checkbox">
+                    <label for="curvy-lines-checkbox" title="Make the end bits of the tree lines curved">Curvy lines</label>
+                </div>
+            </form>
+        </div>
+
+        <div id="about">
+            <a href="about.html">About</a>
+        </div>
+
+    </body>
+</html>

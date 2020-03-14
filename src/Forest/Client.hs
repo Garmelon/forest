@@ -8,6 +8,7 @@ module Forest.Client
 
 import           Brick
 import           Brick.BChan
+import           Brick.Widgets.Edit
 import           Control.Monad
 import           Control.Monad.IO.Class
 import qualified Graphics.Vty             as Vty
@@ -118,7 +119,7 @@ clientHandleEvent cs (VtyEvent ev)
   | isEditorActive (csUiState cs) = onKeyWithEditor cs ev
   | otherwise                     = onKeyWithoutEditor cs ev
 clientHandleEvent cs (AppEvent ev) = case ev of
-  EventNode node -> onUiState cs $ replaceRootNode node
+  EventNode node        -> onUiState cs $ replaceRootNode node
   EventConnectionClosed -> halt cs
 clientHandleEvent cs _ = continue cs
 
@@ -128,6 +129,7 @@ clientAttrMap = attrMap Vty.defAttr
   , ("focus", Vty.defAttr `Vty.withBackColor` Vty.blue)
   , ("flags", Vty.defAttr `Vty.withForeColor` Vty.brightBlack)
   , (treeLineAttr, Vty.defAttr `Vty.withForeColor` Vty.brightBlack)
+  , (editAttr, Vty.defAttr `Vty.withBackColor` Vty.brightBlack)
   ]
 
 clientApp :: App ClientState Event ResourceName

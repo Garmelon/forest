@@ -65,7 +65,7 @@ import qualified Data.Set        as Set
 data OrderedMap k a = OrderedMap
   { omMap   :: Map.Map k a
   , omOrder :: [k]
-  }
+  } deriving (Eq)
 
 instance (Ord k, Show k, Show a) => Show (OrderedMap k a) where
   show m = "fromList " ++ show (toList m)

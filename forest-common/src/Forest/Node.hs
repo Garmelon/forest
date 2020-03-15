@@ -82,7 +82,7 @@ data Node = Node
   { nodeText     :: !T.Text
   , nodeFlags    :: !NodeFlags
   , nodeChildren :: !(OMap.OrderedMap NodeId Node)
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 instance ToJSON Node where
   toJSON node = object

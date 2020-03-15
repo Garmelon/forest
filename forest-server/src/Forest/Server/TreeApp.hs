@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE TupleSections     #-}
-
 -- | This module specifies a structure for forest server applications. It is
 -- based on the way Brick models applications.
 
@@ -43,7 +41,7 @@ data Event e
 data TreeApp s e = TreeApp
   { appGraft       :: s -> Node
   , appHandleEvent :: s -> Event e -> IO (Next s)
-  , appConstructor :: forall a. (s -> IO a) -> IO a
+  , appConstructor :: forall a. (s -> Maybe (TChan e) -> IO a) -> IO a
   }
 
 simpleConstructor :: s -> (s -> IO a) -> IO a
@@ -99,12 +97,12 @@ runUntilHalt conn app rs = do
       sendNodeUpdate conn (rsNode rs) node'
       runUntilHalt conn app rs{rsState = state', rsNode = node'}
 
-runTreeApp :: Int -> Maybe (TChan e) -> TreeApp s e -> WS.ServerApp
-runTreeApp pingDelay customChan app pendingConn = do
+runTreeApp :: Int -> TreeApp s e -> WS.ServerApp
+runTreeApp pingDelay app pendingConn = do
   conn <- WS.acceptRequest pendingConn
   chan <- atomically newTChan
   WS.withPingThread conn pingDelay (pure ()) $
-    appConstructor app $ \initialState -> do
+    appConstructor app $ \initialState customChan -> do
       firstPacket <- receivePacket conn
       case firstPacket of
         ClientHello _ -> do

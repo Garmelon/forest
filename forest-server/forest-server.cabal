@@ -26,15 +26,8 @@ source-repository head
 
 library
   exposed-modules:
-      Forest.Server
-      Forest.Server.Broadcast
       Forest.Server.Schema
       Forest.Server.TreeApp
-      Forest.Server.TreeModule
-      Forest.Server.TreeModule.Animate
-      Forest.Server.TreeModule.Const
-      Forest.Server.TreeModule.Fork
-      Forest.Server.TreeModule.SharedEditing
   other-modules:
       Paths_forest_server
   hs-source-dirs:

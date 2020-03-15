@@ -39,7 +39,7 @@ data Event e
   | Custom e
 
 data TreeApp s e = TreeApp
-  { appGraft       :: s -> Node
+  { appDraw        :: s -> Node
   , appHandleEvent :: s -> Event e -> IO (Next s)
   , appConstructor :: forall a. (s -> Maybe (TChan e) -> IO a) -> IO a
   }
@@ -93,7 +93,7 @@ runUntilHalt conn app rs = do
   case next of
     Halt -> pure ()
     Continue state' -> do
-      let node' = appGraft app state'
+      let node' = appDraw app state'
       sendNodeUpdate conn (rsNode rs) node'
       runUntilHalt conn app rs{rsState = state', rsNode = node'}
 
@@ -106,7 +106,7 @@ runTreeApp pingDelay app pendingConn = do
       firstPacket <- receivePacket conn
       case firstPacket of
         ClientHello _ -> do
-          let initialNode = appGraft app initialState
+          let initialNode = appDraw app initialState
               rs = RunState chan customChan initialState initialNode
           sendPacket conn $ ServerHello [] initialNode
           withThread (receiveThread conn chan) $ runUntilHalt conn app rs

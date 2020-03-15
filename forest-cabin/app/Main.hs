@@ -35,8 +35,8 @@ data AppState = AppState
   , asSharedNode    :: Node
   }
 
-graft :: AppState -> Node
-graft = asSharedNode
+draw :: AppState -> Node
+draw = asSharedNode
 
 updateSharedNode :: AppState -> (Node -> Node) -> IO AppState
 updateSharedNode s f = do
@@ -61,8 +61,7 @@ handleEvent s (Delete path) = do
 handleEvent s (Reply path text) = do
   s' <- updateSharedNode s $ appendAt (txtNode "edr" text) path
   pure $ continue s'
-handleEvent s _ = do
-  pure $ continue s
+handleEvent s _ = pure $ continue s
 
 constructor
   :: TChan AppEvent
@@ -81,7 +80,7 @@ main = do
   sharedNodeVar <- newMVar $ txtNode "r" "Sandbox"
   broadcastChan <- atomically newBroadcastTChan
   let app = TreeApp
-            { appGraft = graft
+            { appDraw = draw
             , appHandleEvent = handleEvent
             , appConstructor = constructor broadcastChan sharedNodeVar
             }

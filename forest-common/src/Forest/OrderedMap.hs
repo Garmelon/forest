@@ -70,6 +70,12 @@ data OrderedMap k a = OrderedMap
 instance (Ord k, Show k, Show a) => Show (OrderedMap k a) where
   show m = "fromList " ++ show (toList m)
 
+instance Functor (OrderedMap k) where
+  fmap = Forest.OrderedMap.map
+
+instance (Ord k) => Foldable (OrderedMap k) where
+  foldMap f = foldMap f . elems
+
 -- Invariants of this data type:
 --
 -- 1. The 'omOrder' list contains each key from 'omMap' exactly once.

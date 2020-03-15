@@ -28,6 +28,7 @@ library
   exposed-modules:
       Forest.Server
       Forest.Server.Broadcast
+      Forest.Server.Schema
       Forest.Server.TreeApp
       Forest.Server.TreeModule
       Forest.Server.TreeModule.Animate

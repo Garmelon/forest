@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Forest.Server.Schema
   ( Schema
   , fork
@@ -6,12 +8,19 @@ module Forest.Server.Schema
   , collect
   , collectWith
   , dispatch
+  -- * Useful type
+  , Branch(..)
+  , schemaDraw
+  , schemaHandleEvent
+  , schemaLift
   ) where
 
-import qualified Data.Text         as T
+import qualified Data.Text             as T
+import           Lens.Micro
 
 import           Forest.Node
-import qualified Forest.OrderedMap as OMap
+import qualified Forest.OrderedMap     as OMap
+import           Forest.Server.TreeApp
 
 data Schema a
   = Fork T.Text (OMap.OrderedMap NodeId (Schema a))
@@ -44,3 +53,33 @@ dispatch :: Path -> Schema a -> Maybe (Path, a)
 dispatch path          (Leaf a)      = Just (path, a)
 dispatch (Path (x:xs)) (Fork _ omap) = dispatch (Path xs) =<< (omap OMap.!? x)
 dispatch (Path [])     (Fork _ _   ) = Nothing -- More specfic than required
+
+data Branch s e = Branch
+  { branchNode        :: Node
+  , branchHandleEvent :: Path -> Event e -> IO s
+  }
+
+schemaDraw :: Schema (Branch s e) -> Node
+schemaDraw = collectWith branchNode
+
+schemaHandleEvent :: Schema (Branch s e) -> Event e -> Maybe (IO s)
+schemaHandleEvent schema event = do
+  path <- getPath event
+  (relPath, branch) <- dispatch path schema
+  pure $ branchHandleEvent branch relPath event
+  where
+    getPath (Edit path _)  = Just path
+    getPath (Delete path)  = Just path
+    getPath (Reply path _) = Just path
+    getPath (Act path)     = Just path
+    getPath _              = Nothing
+
+schemaLift :: Lens' s t -> (t -> Branch t e) -> s -> Branch s e
+schemaLift l f s = Branch
+  { branchNode = branchNode branch
+  , branchHandleEvent = \path event -> do
+      t' <- branchHandleEvent branch path event
+      pure $ s & l .~ t'
+  }
+  where
+    branch = f $ s ^. l

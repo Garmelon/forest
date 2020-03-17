@@ -1,13 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Main where
 
-import           Control.Concurrent.MVar
 import           Control.Concurrent.STM
-import           Control.Monad
-import qualified Network.WebSockets      as WS
+import           Lens.Micro
+import           Lens.Micro.TH
+import qualified Network.WebSockets              as WS
 
 import           Forest.Node
+import           Forest.Server.Branch.SharedEdit
+import           Forest.Server.Schema
 import           Forest.Server.TreeApp
 
 {- Websocket server stuff -}
@@ -25,64 +28,51 @@ options = WS.defaultServerOptions
 
 {- The actual app -}
 
-data AppEvent = SharedNodeEdited
+data AppEvent = UpdateSharedEdit
   deriving (Show, Eq)
 
-data AppState = AppState
-  { asBroadcastChan :: TChan AppEvent
-  , asReceiveChan   :: TChan AppEvent
-  , asSharedNodeVar :: MVar Node
-  , asSharedNode    :: Node
+newtype AppState = AppState
+  { _asSharedEdit :: SharedEditLocal
   }
 
-draw :: AppState -> Node
-draw = asSharedNode
+makeLenses ''AppState
 
-updateSharedNode :: AppState -> (Node -> Node) -> IO AppState
-updateSharedNode s f = do
-  node <- takeMVar $ asSharedNodeVar s
-  let node' = f node
-  putMVar (asSharedNodeVar s) node'
-  when (node /= node') $ atomically $ do
-    writeTChan (asBroadcastChan s) SharedNodeEdited
-    void $ readTChan $ asReceiveChan s
-  pure s{asSharedNode = node'}
+schema :: AppState -> Schema (Branch AppState AppEvent)
+schema s = fork' "Forest"
+  [ leaf $ schemaLift asSharedEdit sharedEditBranch s
+  ]
+
+draw :: AppState -> Node
+draw = schemaDraw . schema
 
 handleEvent :: AppState -> Event AppEvent -> IO (Next AppState)
-handleEvent s (Custom SharedNodeEdited) = do
-  node <- readMVar $ asSharedNodeVar s
-  pure $ continue s{asSharedNode = node}
-handleEvent s (Edit path text) = do
-  s' <- updateSharedNode s $ adjustAt (\n -> n{nodeText = text}) path
-  pure $ continue s'
-handleEvent s (Delete path) = do
-  s' <- updateSharedNode s $ deleteAt path
-  pure $ continue s'
-handleEvent s (Reply path text) = do
-  s' <- updateSharedNode s $ appendAt (txtNode "edr" text) path
-  pure $ continue s'
-handleEvent s _ = pure $ continue s
+handleEvent s (Custom UpdateSharedEdit) = do
+  sel' <- sharedEditUpdate $ s ^. asSharedEdit
+  pure $ continue $ s & asSharedEdit .~ sel'
+handleEvent s e = case schemaHandleEvent (schema s) e of
+  Nothing -> pure $ continue s
+  Just s' -> continue <$> s'
 
 constructor
   :: TChan AppEvent
-  -> MVar Node
+  -> SharedEditGlobal
   -> (AppState -> Maybe (TChan AppEvent) -> IO a)
   -> IO a
-constructor broadcastChan sharedNodeVar cont = do
-  node <- readMVar sharedNodeVar
+constructor broadcastChan seg cont = do
+  sel <- sharedEditLocal seg
   receiveChan <- atomically $ dupTChan broadcastChan
-  let state = AppState broadcastChan receiveChan sharedNodeVar node
-  cont state $ Just receiveChan
+  cont (AppState sel) (Just receiveChan)
 
 main :: IO ()
 main = do
-  putStrLn "Preparing shared editing"
-  sharedNodeVar <- newMVar $ txtNode "r" "Sandbox"
+  putStrLn "Preparing server"
   broadcastChan <- atomically newBroadcastTChan
+  let onEditChange = atomically $ writeTChan broadcastChan UpdateSharedEdit
+  seg <- sharedEditGlobal onEditChange "Sandbox"
   let app = TreeApp
             { appDraw = draw
             , appHandleEvent = handleEvent
-            , appConstructor = constructor broadcastChan sharedNodeVar
+            , appConstructor = constructor broadcastChan seg
             }
 
   putStrLn "Starting server"

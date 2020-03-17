@@ -26,6 +26,7 @@ source-repository head
 
 library
   exposed-modules:
+      Forest.Server.Branch.SharedEdit
       Forest.Server.Schema
       Forest.Server.TreeApp
   other-modules:
@@ -36,6 +37,7 @@ library
       base >=4.7 && <5
     , containers
     , forest-common
+    , microlens
     , stm
     , text
     , transformers

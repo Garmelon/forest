@@ -29,21 +29,21 @@
 }
 
 /* Fancy tree lines */
-.node, .node::before {
+.node-children > *, .node-children > *::before {
     border-color: var(--bright-black);
     border-width: 2px;
 }
-.node-children > .node {
+.node-children > * {
     position: relative; /* .node is containing block for its .node::before */
     margin-left: calc(0.5ch - 1px);
     padding-left: calc(1.5ch - 1px);
     border-left-style: solid;
 }
-.node-children > .node:last-child {
+.node-children > *:last-child {
     padding-left: calc(1.5ch + 1px);
     border-left-style: none;
 }
-.node-children > .node::before {
+.node-children > *::before {
     content: "";
     position: absolute;
     left: 0;
@@ -52,9 +52,9 @@
     height: calc(0.6em - 1px);
     border-bottom-style: solid;
 }
-.node-children > .node:last-child::before {
+.node-children > *:last-child::before {
     border-left-style: solid;
-    transition: all 0.4s;
+    transition: border-bottom-left-radius 0.4s;
 }
 
 /* Curvy lines */

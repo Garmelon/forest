@@ -349,6 +349,7 @@ class Editor {
         this.nodeTree = nodeTree;
 
         this.textarea = newElement("textarea");
+        this.element = newElement("div", "node-editor", this.textarea);
         this.textarea.addEventListener("input", event => this._updateTextAreaHeight());
 
         this.path = undefined;
@@ -370,21 +371,22 @@ class Editor {
             node.elements.main.classList.remove("has-editor");
         }
 
-        this.textarea.parentNode.removeChild(this.textarea);
+        this.element.parentNode.removeChild(this.element);
     }
 
     _attachTo(node, asChild) {
         if (asChild) {
-            node.elements.children.appendChild(this.textarea);
+            node.elements.children.appendChild(this.element);
+            node.setFolded(false);
         } else {
             node.elements.main.classList.add("has-editor");
-            node.elements.main.insertBefore(this.textarea, node.elements.children);
+            node.elements.main.insertBefore(this.element, node.elements.children);
         }
         this._updateTextAreaHeight();
     }
 
     restore() {
-        if (this.textarea.parentNode !== null) return; // Already attached
+        if (this.element.parentNode !== null) return; // Already attached
         let node = this._getAttachedNode();
         if (node === undefined) return; // Nowhere to attach
         this._attachTo(node, this.asChild);
@@ -417,6 +419,64 @@ class Editor {
     }
 }
 
+class Connection {
+    constructor(nodeTree, cursor, editor, url) {
+        this.nodeTree = nodeTree;
+        this.cursor = cursor;
+        this.editor = editor;
+
+        this.url = url;
+        this.ws = new WebSocket(this.url);
+        this.ws.addEventListener("message", msg => this.onMessage(msg));
+        this.ws.addEventListener("open", _ => this.sendHello());
+    }
+
+    onMessage(msg) {
+        let content = JSON.parse(msg.data);
+        if (content.type === "hello") {
+            this.onHello(content);
+        } else if (content.type === "update") {
+            this.onUpdate(content);
+        }
+    }
+
+    onHello(content) {
+        this.nodeTree.updateAt(new Path(), new Node(content.node));
+        this.cursor.restore();
+        this.editor.restore();
+    }
+
+    onUpdate(content) {
+        this.nodeTree.updateAt(new Path(...content.path), new Node(content.node));
+        this.cursor.restore();
+        this.editor.restore();
+    }
+
+    _send(thing) {
+        this.ws.send(JSON.stringify(thing));
+    }
+
+    sendHello() {
+        this._send({type: "hello", extensions: []});
+    }
+
+    sendEdit(path, text) {
+        this._send({type: "edit", path: path.elements, text: text});
+    }
+
+    sendDelete(path) {
+        this._send({type: "delete", path: path.elements});
+    }
+
+    sendReply(path, text) {
+        this._send({type: "reply", path: path.elements, text: text});
+    }
+
+    sendAct(path) {
+        this._send({type: "act", path: path.elements});
+    }
+}
+
 /*
  * The main application
  */
@@ -426,29 +486,48 @@ const loadingNode = new Node({text: "Connecting...", children: {}, order: []});
 const nodeTree = new NodeTree(rootNodeContainer, loadingNode);
 const cursor = new Cursor(nodeTree);
 const editor = new Editor(nodeTree);
+const conn = new Connection(nodeTree, cursor, editor, "ws://127.0.0.1:8080/");
 
-// TODO Replace this testing node with the real websocket code
-const testNode = new Node({text: "Forest", children: [
-    {text: "Test", children: [
-        {text: "Bla", children: [], order: []},
-    ], order: [0]},
-    {text: "Sandbox", edit: true, delete: true, reply: true, act: true, children: [], order: []},
-    {text: "About", children: [
-        {text: "This project is an experiment in tree-based interaction.", children: [], order: []},
-        {text: "Motivation", children: [], order: []},
-        {text: "Inspirations", children: [], order: []},
-    ], order: [0, 1, 2]}
-], order: [0, 1, 2]});
-nodeTree.updateAt(new Path(), testNode);
+function beginEdit() {
+    let node = cursor.getSelectedNode();
+    editor.content = node.text;
+    editor.attachTo(cursor.path, false);
+}
+
+function beginDirectReply() {
+    editor.content = "";
+    editor.attachTo(cursor.path, true);
+}
+
+function beginIndirectReply() {
+    let path = cursor.path.parent;
+    if (path === undefined) return;
+    editor.content = "";
+    editor.attachTo(path, true);
+}
+
+function cancelEdit() {
+    editor.detach();
+}
+
+function completeEdit() {
+    let path = editor.path;
+    let text = editor.textarea.value;
+    if (editor.asChild) {
+        conn.sendReply(path, text);
+    } else {
+        conn.sendEdit(path, text);
+    }
+    editor.detach();
+}
 
 document.addEventListener("keydown", event => {
-    console.log(event);
     if (event.code === "Escape") {
-        editor.detach();
-    } else if (document.activeElement === editor.textarea) {
-        if (event.code === "Enter" && !event.shiftKey) {
-            editor.detach();
-        }
+        cancelEdit();
+        event.preventDefault();
+    } else if (event.code === "Enter" && !event.shiftKey) {
+        completeEdit();
+        event.preventDefault();
     } else if (document.activeElement.tagName === "TEXTAREA") {
         return; // Do nothing special
     } else if (event.code === "Tab") {
@@ -461,9 +540,22 @@ document.addEventListener("keydown", event => {
         cursor.moveDown();
         event.preventDefault();
     } else if (event.code === "KeyE") {
-        let node = cursor.getSelectedNode();
-        editor.content = node.text;
-        editor.attachTo(cursor.path, false);
+        beginEdit();
+        event.preventDefault();
+    } else if (event.code === "KeyR") {
+        if (event.shiftKey) {
+            console.log("indirect");
+            beginIndirectReply();
+        } else {
+            console.log("direct");
+            beginDirectReply();
+        }
+        event.preventDefault();
+    } else if (event.code === "KeyD") {
+        conn.sendDelete(cursor.path);
+        event.preventDefault();
+    } else if (event.code === "KeyA") {
+        conn.sendAct(cursor.path);
         event.preventDefault();
     }
 });

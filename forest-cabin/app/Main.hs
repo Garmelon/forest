@@ -7,23 +7,55 @@ import           Control.Concurrent.STM
 import           Lens.Micro
 import           Lens.Micro.TH
 import qualified Network.WebSockets              as WS
+import           Options.Applicative
 
 import           Forest.Node
 import           Forest.Server.Branch.SharedEdit
 import           Forest.Server.Schema
 import           Forest.Server.TreeApp
 
-{- Websocket server stuff -}
+{- Command line options -}
 
-pingDelay :: Int
-pingDelay = 10
+data ServerOptions = ServerOptions
+  { serverPingDelay :: Int
+  , serverHost      :: String
+  , serverPort      :: Int
+  }
 
-pongDelay :: Int
-pongDelay = 3 * pingDelay
+parser :: Parser ServerOptions
+parser = ServerOptions
+  <$> option auto
+      (  long "ping-delay"
+      <> help "How many seconds to wait between each ping sent to the client"
+      <> value 10
+      <> showDefault
+      <> metavar "SECONDS"
+      )
+  <*> strOption
+      (  short 'h'
+      <> long "host"
+      <> help "The server's host"
+      <> value (WS.serverHost WS.defaultServerOptions)
+      <> showDefault
+      <> metavar "HOST"
+      )
+  <*> option auto
+      (  short 'p'
+      <> long "port"
+      <> help "The port to listen for websocket connections on"
+      <> value (WS.serverPort WS.defaultServerOptions)
+      <> showDefault
+      <> metavar "PORT"
+      )
 
-options :: WS.ServerOptions
-options = WS.defaultServerOptions
-  { WS.serverRequirePong = Just pongDelay
+serverOptionsParserInfo :: ParserInfo ServerOptions
+serverOptionsParserInfo = info (helper <*> parser) fullDesc
+
+wsOptions :: ServerOptions -> WS.ServerOptions
+wsOptions o = WS.defaultServerOptions
+  { WS.serverHost        = serverHost o
+  , WS.serverPort        = serverPort o
+  , WS.serverRequirePong = Just $ serverPingDelay o * 2
   }
 
 {- The actual app -}
@@ -65,6 +97,8 @@ constructor broadcastChan seg cont = do
 
 main :: IO ()
 main = do
+  opts <- execParser serverOptionsParserInfo
+
   putStrLn "Preparing server"
   broadcastChan <- atomically newBroadcastTChan
   let onEditChange = atomically $ writeTChan broadcastChan UpdateSharedEdit
@@ -76,4 +110,5 @@ main = do
             }
 
   putStrLn "Starting server"
-  WS.runServerWithOptions options $ runTreeApp pingDelay app
+  WS.runServerWithOptions (wsOptions opts) $
+    runTreeApp (serverPingDelay opts) app

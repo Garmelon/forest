@@ -35,6 +35,7 @@ library
     , forest-server
     , microlens
     , microlens-th
+    , optparse-applicative
     , stm
     , websockets
   default-language: Haskell2010
@@ -53,6 +54,7 @@ executable forest-cabin
     , forest-server
     , microlens
     , microlens-th
+    , optparse-applicative
     , stm
     , websockets
   default-language: Haskell2010

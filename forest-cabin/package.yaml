@@ -17,6 +17,7 @@ dependencies:
   - forest-server
   - microlens
   - microlens-th
+  - optparse-applicative
   - stm
   - websockets
 

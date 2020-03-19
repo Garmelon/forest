@@ -45,6 +45,7 @@ import           Forest.Client.Widgets.NodeEditor
 import           Forest.Client.Widgets.WidgetTree
 import           Forest.Node
 import qualified Forest.OrderedMap                as OMap
+import           Forest.Util
 
 data EditorInfo n = EditorInfo
   { eiEditor :: !(NodeEditor n)
@@ -52,9 +53,22 @@ data EditorInfo n = EditorInfo
   , eiReply  :: !Bool
   } deriving (Show)
 
+-- | This type is used to move the cursor to a node that is expected to appear
+-- soon. For example, if the user creates a new node by replying, the cursor
+-- should move to this new node as soon as it appears (unless the cursor has
+-- been moved in-between).
+data FocusTarget = FocusTarget
+  { ftPath  :: !Path
+  -- ^ The node relative to which the target is set
+  , ftChild :: !Bool
+  -- ^ If this is 'True', the target points towards the node's first child. If
+  -- it is 'False', the target points towards the node's next sibling.
+  } deriving (Show)
+
 data UiState n = UiState
   { uiRootNode   :: !Node
   , uiFocused    :: !Path
+  , uiTarget     :: !(Maybe FocusTarget)
   , uiUnfolded   :: !Unfolded
   , uiEditor     :: !(Maybe (EditorInfo n))
   , uiEditorName :: !n
@@ -64,6 +78,7 @@ newUiState :: n -> Node -> UiState n
 newUiState editorName node = UiState
   { uiRootNode   = node
   , uiFocused    = mempty
+  , uiTarget     = Nothing
   , uiUnfolded   = mempty
   , uiEditor     = Nothing
   , uiEditorName = editorName
@@ -77,12 +92,34 @@ getFocusedNode s = fromMaybe rootNode $ applyPath (uiFocused s) rootNode
   where
     rootNode = uiRootNode s
 
+foldedRootNode :: UiState n -> Node
+foldedRootNode s = applyFolds (uiUnfolded s) (uiRootNode s)
+
 {- Modifying -}
 
 -- | Only keep those unfolded nodes that actually exist.
 validateUnfolded :: UiState n -> UiState n
 validateUnfolded s =
   s {uiUnfolded = Set.filter (referencedNodeExists $ uiRootNode s) (uiUnfolded s)}
+
+-- | Try to apply the focus target if it is set and the corresponding node is
+-- visible. Does not modify the UI state otherwise.
+--
+-- The plan is that this does not behave in an unexpected way. It definitely
+-- should not move the cursor around if the user does not expect it, because
+-- that would be annoying.
+--
+-- One scenario this tries to avoid: The targeted node exists but is not
+-- visible. The cursor is moved to the target node, and since it is not visible,
+-- 'moveToValidParent' moves it upwards to the first visible parent. This causes
+-- the cursor to jump weirdly and without explanation.
+moveToTarget :: UiState n -> UiState n
+moveToTarget s = fromMaybe s $ do
+  target <- uiTarget s
+  let s' = s{uiFocused = ftPath target, uiTarget = Nothing}
+  pure $ if ftChild target
+    then moveFocusToFirstChild s'
+    else moveFocusToNextSibling s'
 
 -- | Try to find the closest parent to a 'Path' that exists in the 'Node'.
 findValidParent :: Node -> Path -> Path
@@ -91,11 +128,16 @@ findValidParent node (Path (x:xs)) = case applyId x node of
   Nothing    -> Path []
   Just child -> Path [x] <> findValidParent child (Path xs)
 
--- | Modify the focused path so it always points to an existing node.
+-- | Move to the closest valid parent as a last-ditch effort if the current
+-- focus path becomes invalid.
+moveToValidParent :: UiState n -> UiState n
+moveToValidParent s =
+  s{uiFocused = findValidParent (foldedRootNode s) (uiFocused s)}
+
+-- | Modify the focused path so it always points to an existing node. Apply the
+-- focus target if possible.
 validateFocused :: UiState n -> UiState n
-validateFocused s =
-  let foldedRootNode = applyFolds (uiUnfolded s) (uiRootNode s)
-  in  s {uiFocused = findValidParent foldedRootNode $ uiFocused s}
+validateFocused = moveToValidParent . moveToTarget
 
 -- | Close the editor if it doesn't point to a valid path.
 validateEditor :: UiState n -> UiState n
@@ -114,7 +156,8 @@ validate :: UiState n -> UiState n
 validate = validateEditor . validateFocused . validateUnfolded
 
 replaceRootNode :: Node -> UiState n -> UiState n
-replaceRootNode node s = validate s { uiRootNode = node
+replaceRootNode node s = validate s
+  { uiRootNode = node
   , uiFocused = findNextValidNode (uiRootNode s) node (uiFocused s)
   }
 
@@ -139,9 +182,10 @@ findNextValidNode from to (Path (x:xs)) = fromMaybe (Path []) $ do
       | otherwise         = Just $ last list
 
 moveFocus :: (Node -> Path -> Path) -> UiState n -> UiState n
-moveFocus f s =
-  let foldedRootNode = applyFolds (uiUnfolded s) (uiRootNode s)
-  in  validateFocused s {uiFocused = f foldedRootNode $ uiFocused s}
+moveFocus f s = validateFocused s
+  { uiFocused = f (foldedRootNode s) (uiFocused s)
+  , uiTarget  = Nothing
+  }
 
 moveFocusUp :: UiState n -> UiState n
 moveFocusUp = moveFocus findPrevNode
@@ -175,11 +219,22 @@ moveFocusToFirstSibling = moveFocusToSibling headMay
 moveFocusToLastSibling :: UiState n -> UiState n
 moveFocusToLastSibling = moveFocusToSibling lastMay
 
+moveFocusToNextSibling :: UiState n -> UiState n
+moveFocusToNextSibling s = fromMaybe s $ do
+  (_, nodeId) <- splitInitLast $ uiFocused s
+  pure $ moveFocusToSibling (findNext (==nodeId)) s
+
 foldAtFocus :: UiState n -> UiState n
-foldAtFocus s = validateUnfolded $ s {uiUnfolded = Set.delete (uiFocused s) (uiUnfolded s)}
+foldAtFocus s = validateUnfolded s
+  { uiUnfolded = Set.delete (uiFocused s) (uiUnfolded s)
+  , uiTarget   = Nothing
+  }
 
 unfoldAtFocus :: UiState n -> UiState n
-unfoldAtFocus s = validateUnfolded $ s {uiUnfolded = Set.insert (uiFocused s) (uiUnfolded s)}
+unfoldAtFocus s = validateUnfolded s
+  { uiUnfolded = Set.insert (uiFocused s) (uiUnfolded s)
+  , uiTarget   = Nothing
+  }
 
 toggleFoldAtFocus :: UiState n -> UiState n
 toggleFoldAtFocus s = if uiFocused s `Set.member` uiUnfolded s
@@ -194,7 +249,7 @@ editNode reply path s =
         , eiPath   = path
         , eiReply  = reply
         }
-  in  validateEditor $ s {uiEditor = Just editorInfo}
+  in  validateEditor s{uiEditor = Just editorInfo, uiTarget = Nothing}
 
 -- | Begin editing the currently focused node. Discards any current editor
 -- status.
@@ -203,20 +258,18 @@ editCurrentNode s = editNode False (uiFocused s) s
 
 -- | Reply to the currently focused node. Discards any current editor status.
 replyToCurrentNode :: UiState n -> UiState n
-replyToCurrentNode s = editNode True (uiFocused s) $ moveFocusToLastChild s
+replyToCurrentNode s = editNode True (uiFocused s) s
 
 -- | Reply in parallel to the currently focused node, unless it is the root node
 -- (in which case no action is taken).
 replyAfterCurrentNode :: UiState n -> UiState n
 replyAfterCurrentNode s = case parent $ uiFocused s of
   Nothing   -> s
-  Just path -> editNode True path $ moveFocusToLastSibling s
+  Just path -> editNode True path s
 
 isEditorActive :: UiState n -> Bool
 isEditorActive = isJust . uiEditor
 
--- | Return an action to update the editor if the editor is currently active.
--- Returns 'Nothing' otherwise.
 updateEditor :: Vty.Event -> UiState n -> EventM n (UiState n)
 updateEditor ev s = case uiEditor s of
   Nothing -> pure s
@@ -230,16 +283,23 @@ data EditResult = EditResult
   , erReply :: Bool
   } deriving (Show)
 
+findTarget :: EditorInfo n -> UiState n -> FocusTarget
+findTarget e s = fromMaybe (FocusTarget (eiPath e) (eiReply e)) $ do
+  node <- applyPath (eiPath e) (uiRootNode s)
+  lastChildId <- lastMay $ OMap.keys $ nodeChildren node
+  let path = eiPath e <> Path [lastChildId]
+  pure $ FocusTarget path False
+
 finishEditing :: UiState n -> (UiState n, Maybe EditResult)
-finishEditing s = case uiEditor s of
-  Nothing -> (s, Nothing)
-  Just e ->
-    let editResult = EditResult
-          { erText = getCurrentText $ eiEditor e
-          , erPath = eiPath e
-          , erReply = eiReply e
-          }
-    in  (abortEditing s, Just editResult)
+finishEditing s = fromMaybe (s, Nothing) $ do
+  e <- uiEditor s
+  let editResult = EditResult
+        { erText  = getCurrentText $ eiEditor e
+        , erPath  = eiPath e
+        , erReply = eiReply e
+        }
+      s' = (abortEditing s){uiTarget = Just $ findTarget e s}
+  pure (s', Just editResult)
 
 abortEditing :: UiState n -> UiState n
 abortEditing s = s {uiEditor = Nothing}
@@ -276,18 +336,15 @@ renderNode focused node =
 
 nodeToTree :: (Ord n, Show n) => UiState n -> Path -> Node -> Maybe [WidgetTree n] -> WidgetTree n
 nodeToTree s path node maybeChildren = case uiEditor s of
-  Nothing ->
-    let isFocused = path == uiFocused s
-    in  WidgetTree (renderNode isFocused node) children
-  Just e ->
+  Just e | path == eiPath e ->
     let renderedEditor = renderNodeEditor $ eiEditor e
-        renderedEditorTree = WidgetTree renderedEditor []
-    in  if path /= eiPath e
-        then WidgetTree (renderNode False node) children
-        else if eiReply e
-             then WidgetTree (renderNode False node) $ children ++ [renderedEditorTree]
-             else WidgetTree renderedEditor children
+    in if eiReply e
+       then WidgetTree renderedNode $ children ++ [WidgetTree renderedEditor []]
+       else WidgetTree renderedEditor children
+  _ -> WidgetTree renderedNode children
   where
+    isFocused = path == uiFocused s
+    renderedNode = renderNode isFocused node
     children = fromMaybe [] maybeChildren
 
 renderUiState :: (Ord n, Show n) => IndentOptions -> UiState n -> Widget n

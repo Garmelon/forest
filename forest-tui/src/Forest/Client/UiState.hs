@@ -88,7 +88,7 @@ getFocusedPath :: UiState n -> Path
 getFocusedPath = uiFocused
 
 getFocusedNode :: UiState n -> Node
-getFocusedNode s = fromMaybe rootNode $ applyPath (uiFocused s) rootNode
+getFocusedNode s = fromMaybe rootNode $ applyPath rootNode $ uiFocused s
   where
     rootNode = uiRootNode s
 
@@ -124,7 +124,7 @@ moveToTarget s = fromMaybe s $ do
 -- | Try to find the closest parent to a 'Path' that exists in the 'Node'.
 findValidParent :: Node -> Path -> Path
 findValidParent _ (Path []) = Path []
-findValidParent node (Path (x:xs)) = case applyId x node of
+findValidParent node (Path (x:xs)) = case applyId node x of
   Nothing    -> Path []
   Just child -> Path [x] <> findValidParent child (Path xs)
 
@@ -144,7 +144,7 @@ validateEditor :: UiState n -> UiState n
 validateEditor s = case uiEditor s of
   Nothing -> s
   Just e -> keepEditor $ fromMaybe False $ do
-    node <- applyPath (eiPath e) (uiRootNode s)
+    node <- applyPath (uiRootNode s) (eiPath e)
     let flags = nodeFlags node
     pure $ if eiReply e then flagReply flags else flagEdit flags
   where
@@ -166,8 +166,8 @@ replaceRootNode node s = validate s
 findNextValidNode :: Node -> Node -> Path -> Path
 findNextValidNode _ _ (Path []) = Path []
 findNextValidNode from to (Path (x:xs)) = fromMaybe (Path []) $ do
-  fromNode <- applyId x from
-  case applyId x to of
+  fromNode <- applyId from x
+  case applyId to x of
     Just toNode -> pure $ Path [x] <> findNextValidNode fromNode toNode (Path xs)
     Nothing -> do
       fromIdx <- elemIndex x $ OMap.keys $ nodeChildren from
@@ -198,7 +198,7 @@ moveFocusToParent = moveFocus $ \_ focused -> fromMaybe focused $ parent focused
 
 moveFocusToChild :: ([NodeId] -> Maybe NodeId) -> UiState n -> UiState n
 moveFocusToChild f = moveFocus $ \node focused -> fromMaybe focused $ do
-  siblings <- nodeChildren <$> applyPath focused node
+  siblings <- nodeChildren <$> applyPath node focused
   firstSiblingName <- f $ OMap.keys siblings
   pure $ focused <> Path [firstSiblingName]
 
@@ -283,9 +283,10 @@ data EditResult = EditResult
   , erReply :: Bool
   } deriving (Show)
 
+-- TODO use new functions from the node module
 findTarget :: EditorInfo n -> UiState n -> FocusTarget
 findTarget e s = fromMaybe (FocusTarget (eiPath e) (eiReply e)) $ do
-  node <- applyPath (eiPath e) (uiRootNode s)
+  node <- applyPath (uiRootNode s) (eiPath e)
   lastChildId <- lastMay $ OMap.keys $ nodeChildren node
   let path = eiPath e <> Path [lastChildId]
   pure $ FocusTarget path False

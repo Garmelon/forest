@@ -2,7 +2,6 @@ module Forest.Client.NodeUtil
   ( Unfolded
   , foldVisibleNodes
   , applyFolds
-  , flatten
   , findPrevNode
   , findNextNode
   ) where
@@ -40,14 +39,6 @@ applyFolds unfolded node
     children =
       OMap.mapWithKey (\nid -> applyFolds $ narrowSet nid unfolded) $
       nodeChildren node
-
--- | Return the 'Path's to a node and its subnodes in the order they would be
--- displayed in.
-flatten :: Node -> [Path]
-flatten node =
-  let flattenedChildren =
-        mapChildren (\nid n -> map (Path [nid] <>) $ flatten n) node
-   in Path [] : concat flattenedChildren
 
 findPrevNode :: Node -> Path -> Path
 findPrevNode node path = fromMaybe path $ findPrev (==path) $ flatten node

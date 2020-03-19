@@ -2,7 +2,9 @@
 {-# LANGUAGE OverloadedStrings          #-}
 
 module Forest.Node
-  ( NodeId
+  (
+  -- * Nodes
+    NodeId
   , enumerateIds
   , findUnusedId
   , NodeFlags(..)
@@ -11,14 +13,27 @@ module Forest.Node
   , newNode
   , txtNode
   , hasChildren
-  , mapChildren
+  , diffNodes
+  , flatten
+  -- ** Traversing the tree
   , applyId
   , applyPath
+  , firstChild
+  , lastChild
+  , firstSibling
+  , prevSibling
+  , nextSibling
+  , lastSibling
+  , firstNode
+  , prevNode
+  , nextNode
+  , lastNode
+  -- ** Modifying at a path
   , adjustAt
   , replaceAt
   , deleteAt
   , appendAt
-  , diffNodes
+  -- * Paths
   , Path(..)
   , referencedNodeExists
   , splitHeadTail
@@ -34,14 +49,21 @@ import qualified Data.Map.Strict   as Map
 import           Data.Maybe
 import qualified Data.Set          as Set
 import qualified Data.Text         as T
+import           Safe
 
 import qualified Forest.OrderedMap as OMap
+import           Forest.Util
+
+{- Nodes -}
 
 type NodeId = T.Text
 
+-- | An infinite list of 'NodeId's. Does *not* contain every possible 'NodeId'.
 enumerateIds :: [NodeId]
 enumerateIds = map (T.pack . show) [(0::Integer)..]
 
+-- | Find a 'NodeId' that is not contained in the given set of IDs. Returns the
+-- first matching ID from 'enumerateIds'.
 findUnusedId :: Set.Set NodeId -> NodeId
 findUnusedId usedIds =
   head $ filter (\nid -> not $ nid `Set.member` usedIds) enumerateIds
@@ -140,14 +162,87 @@ txtNode flags text = newNode flags text []
 hasChildren :: Node -> Bool
 hasChildren = not . OMap.null . nodeChildren
 
-mapChildren :: (NodeId -> Node -> a) -> Node -> [a]
-mapChildren f = map (uncurry f) . OMap.toList . nodeChildren
+diffNodes :: Node -> Node -> Maybe (Path, Node)
+diffNodes a b
+  | nodesDiffer || childrenChanged = Just (Path [], b)
+  | otherwise = case differingChildren of
+      []                   -> Nothing
+      [(x, Path xs, node)] -> Just (Path (x:xs), node)
+      _                    -> Just (Path [], b)
+  where
+    nodesDiffer = nodeText a /= nodeText b || nodeFlags a /= nodeFlags b
+    aChildren = nodeChildren a
+    bChildren = nodeChildren b
+    childrenChanged = OMap.keys aChildren /= OMap.keys bChildren
+    diffedChildren = Map.toList $ Map.intersectionWith diffNodes (OMap.toMap aChildren) (OMap.toMap bChildren)
+    differingChildren = [(key, path, node) | (key, Just (path, node)) <- diffedChildren]
 
-applyId :: NodeId -> Node -> Maybe Node
-applyId nid node = nodeChildren node OMap.!? nid
+-- | Return the 'Path's to a node and its subnodes in the order they would be
+-- displayed in.
+flatten :: Node -> [Path]
+flatten node = Path [] : flattenedChildren
+  where
+    flattenChild nid n = map (Path [nid] <>) (flatten n)
+    flattenedChildren =
+      concat $ OMap.elems $ OMap.mapWithKey flattenChild $ nodeChildren node
 
-applyPath :: Path -> Node -> Maybe Node
-applyPath (Path ids) node = foldM (flip applyId) node ids
+{- Traversing the tree -}
+
+applyId :: Node -> NodeId -> Maybe Node
+applyId node nid = nodeChildren node OMap.!? nid
+
+applyPath :: Node -> Path -> Maybe Node
+applyPath node (Path ids) = foldM applyId node ids
+
+getChild :: ([NodeId] -> Maybe NodeId) -> Node -> Path -> Maybe Path
+getChild f root path = do
+  node <- applyPath root path
+  let childIds = OMap.keys $ nodeChildren node
+  childId <- f childIds
+  pure $ path <> Path [childId]
+
+firstChild :: Node -> Path -> Maybe Path
+firstChild = getChild headMay
+
+lastChild :: Node -> Path -> Maybe Path
+lastChild = getChild lastMay
+
+getSibling :: (NodeId -> [NodeId] -> Maybe NodeId) -> Node -> Path -> Maybe Path
+getSibling f root path = do
+  (parentPath, nodeId) <- splitInitLast path
+  parentNode <- applyPath root parentPath
+  let siblingIds = OMap.keys $ nodeChildren parentNode
+  siblingId <- f nodeId siblingIds
+  pure $ parentPath <> Path [siblingId]
+
+firstSibling :: Node -> Path -> Maybe Path
+firstSibling = getSibling $ const headMay
+
+prevSibling :: Node -> Path -> Maybe Path
+prevSibling = getSibling $ findPrev . (==)
+
+nextSibling :: Node -> Path -> Maybe Path
+nextSibling = getSibling $ findNext . (==)
+
+lastSibling :: Node -> Path -> Maybe Path
+lastSibling = getSibling $ const lastMay
+
+getNode :: (Path -> [Path] -> Maybe Path) -> Node -> Path -> Maybe Path
+getNode f root path = f path $ flatten root
+
+firstNode :: Node -> Path -> Maybe Path
+firstNode = getNode $ const headMay
+
+prevNode :: Node -> Path -> Maybe Path
+prevNode = getNode $ findPrev . (==)
+
+nextNode :: Node -> Path -> Maybe Path
+nextNode = getNode $ findNext . (==)
+
+lastNode :: Node -> Path -> Maybe Path
+lastNode = getNode $ const lastMay
+
+{- Modifying at a path -}
 
 adjustAt :: (Node -> Node) -> Path -> Node -> Node
 adjustAt f (Path []) node = f node
@@ -176,27 +271,14 @@ appendAt node =
       let nid = findUnusedId $ OMap.keysSet m
       in  OMap.append nid node m
 
-diffNodes :: Node -> Node -> Maybe (Path, Node)
-diffNodes a b
-  | nodesDiffer || childrenChanged = Just (Path [], b)
-  | otherwise = case differingChildren of
-      []                   -> Nothing
-      [(x, Path xs, node)] -> Just (Path (x:xs), node)
-      _                    -> Just (Path [], b)
-  where
-    nodesDiffer = nodeText a /= nodeText b || nodeFlags a /= nodeFlags b
-    aChildren = nodeChildren a
-    bChildren = nodeChildren b
-    childrenChanged = OMap.keys aChildren /= OMap.keys bChildren
-    diffedChildren = Map.toList $ Map.intersectionWith diffNodes (OMap.toMap aChildren) (OMap.toMap bChildren)
-    differingChildren = [(key, path, node) | (key, Just (path, node)) <- diffedChildren]
+{- Paths -}
 
 newtype Path = Path
   { pathElements :: [NodeId]
   } deriving (Show, Eq, Ord, Semigroup, Monoid, ToJSON, FromJSON)
 
 referencedNodeExists :: Node -> Path -> Bool
-referencedNodeExists node path = isJust $ applyPath path node
+referencedNodeExists node path = isJust $ applyPath node path
 
 splitHeadTail :: Path -> Maybe (NodeId, Path)
 splitHeadTail (Path [])     = Nothing

@@ -16,6 +16,7 @@ dependencies:
   - aeson
   - async
   - containers
+  - safe
   - text
   - websockets
 

@@ -63,14 +63,14 @@ onKeyWithoutEditor cs (Vty.EvKey k _)
   | k `elem` downKeys   = onUiState cs moveFocusDown
   | k `elem` editKeys   = onUiState cs editCurrentNode
   | k `elem` deleteKeys = do
-      when (flagDelete $ nodeFlags $ getFocusedNode $ csUiState cs) $
-        liftIO $ sendPacket (csConn cs) $ ClientDelete (getFocusedPath $ csUiState cs)
+      when (flagDelete $ nodeFlags $ focusedNode $ csUiState cs) $
+        liftIO $ sendPacket (csConn cs) $ ClientDelete (focusedPath $ csUiState cs)
       continue cs
   | k `elem` replyKeys  = onUiState cs (replyToCurrentNode . unfoldAtFocus)
   | k `elem` replyKeys' = onUiState cs replyAfterCurrentNode
   | k `elem` actKeys    = do
-      when (flagAct $ nodeFlags $ getFocusedNode $ csUiState cs) $
-        liftIO $ sendPacket (csConn cs) $ ClientAct (getFocusedPath $ csUiState cs)
+      when (flagAct $ nodeFlags $ focusedNode $ csUiState cs) $
+        liftIO $ sendPacket (csConn cs) $ ClientAct (focusedPath $ csUiState cs)
       continue cs
   where
     quitKeys   = [Vty.KChar 'q', Vty.KEsc]
@@ -80,7 +80,7 @@ onKeyWithoutEditor cs (Vty.EvKey k _)
     editKeys   = [Vty.KChar 'e']
     deleteKeys = [Vty.KChar 'd']
     replyKeys  = [Vty.KChar 'r']
-    replyKeys'  = [Vty.KChar 'R']
+    replyKeys' = [Vty.KChar 'R']
     actKeys    = [Vty.KChar 'a', Vty.KChar ' ', Vty.KEnter]
 onKeyWithoutEditor cs _ = continue cs
 

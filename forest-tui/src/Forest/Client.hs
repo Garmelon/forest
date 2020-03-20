@@ -55,33 +55,39 @@ onUiState' cs f = do
 
 {- ... without active editor -}
 
+deleteNode :: ClientState -> ClientM ()
+deleteNode cs =
+  when (flagDelete $ nodeFlags $ focusedNode s) $
+  liftIO $ sendPacket (csConn cs) $ ClientDelete (focusedPath s)
+  where
+    s = csUiState cs
+
+actUponNode :: ClientState -> ClientM ()
+actUponNode cs =
+  when (flagAct $ nodeFlags $ focusedNode s) $
+  liftIO $ sendPacket (csConn cs) $ ClientAct (focusedPath s)
+  where
+    s = csUiState cs
+
 onKeyWithoutEditor :: ClientState -> Vty.Event -> ClientM (Next ClientState)
 onKeyWithoutEditor cs (Vty.EvKey k _)
-  | k `elem` quitKeys   = halt cs
-  | k `elem` foldKeys   = onUiState cs toggleFoldAtFocus
-  | k `elem` upKeys     = onUiState cs moveFocusUp
-  | k `elem` downKeys   = onUiState cs moveFocusDown
-  | k `elem` editKeys   = onUiState cs editCurrentNode
-  | k `elem` deleteKeys = do
-      when (flagDelete $ nodeFlags $ focusedNode $ csUiState cs) $
-        liftIO $ sendPacket (csConn cs) $ ClientDelete (focusedPath $ csUiState cs)
-      continue cs
-  | k `elem` replyKeys  = onUiState cs (replyToCurrentNode . unfoldAtFocus)
-  | k `elem` replyKeys' = onUiState cs replyAfterCurrentNode
-  | k `elem` actKeys    = do
-      when (flagAct $ nodeFlags $ focusedNode $ csUiState cs) $
-        liftIO $ sendPacket (csConn cs) $ ClientAct (focusedPath $ csUiState cs)
-      continue cs
-  where
-    quitKeys   = [Vty.KChar 'q', Vty.KEsc]
-    foldKeys   = [Vty.KChar '\t']
-    upKeys     = [Vty.KChar 'k', Vty.KUp]
-    downKeys   = [Vty.KChar 'j', Vty.KDown]
-    editKeys   = [Vty.KChar 'e']
-    deleteKeys = [Vty.KChar 'd']
-    replyKeys  = [Vty.KChar 'r']
-    replyKeys' = [Vty.KChar 'R']
-    actKeys    = [Vty.KChar 'a', Vty.KChar ' ', Vty.KEnter]
+  | k `elem` [Vty.KChar 'q', Vty.KEsc] = halt cs
+  | k == Vty.KChar '\t' = onUiState cs toggleFoldAtFocus
+  | k `elem` [Vty.KChar 'k', Vty.KUp] = onUiState cs moveFocusUp
+  | k `elem` [Vty.KChar 'j', Vty.KDown] = onUiState cs moveFocusDown
+  | k `elem` [Vty.KChar 'K', Vty.KPageUp] = onUiState cs moveFocusToPrevSibling
+  | k `elem` [Vty.KChar 'J', Vty.KPageDown] =
+    onUiState cs moveFocusToNextSibling
+  | k `elem` [Vty.KChar 'h', Vty.KLeft] = onUiState cs moveFocusToParent
+  | k `elem` [Vty.KChar 'g', Vty.KHome] = onUiState cs moveFocusToTop
+  | k `elem` [Vty.KChar 'G', Vty.KEnd] = onUiState cs moveFocusToBottom
+  | k == Vty.KChar 'e' = onUiState cs editCurrentNode
+  | k == Vty.KChar 'r' = onUiState cs (replyToCurrentNode . unfoldAtFocus)
+  | k == Vty.KChar 'R' = onUiState cs replyAfterCurrentNode
+  | k `elem` [Vty.KChar 'd', Vty.KChar 'x', Vty.KDel, Vty.KBS] =
+    deleteNode cs *> continue cs
+  | k `elem` [Vty.KChar 'a', Vty.KChar ' ', Vty.KEnter] =
+    actUponNode cs *> continue cs
 onKeyWithoutEditor cs _ = continue cs
 
 {- ... with active editor -}
@@ -134,11 +140,11 @@ clientAttrMap = attrMap Vty.defAttr
 
 clientApp :: App ClientState Event ResourceName
 clientApp = App
-  { appDraw = clientDraw
+  { appDraw         = clientDraw
   , appChooseCursor = showFirstCursor
-  , appHandleEvent = clientHandleEvent
-  , appStartEvent = pure
-  , appAttrMap = const clientAttrMap
+  , appHandleEvent  = clientHandleEvent
+  , appStartEvent   = pure
+  , appAttrMap      = const clientAttrMap
   }
 
 runClient :: WS.Connection -> BChan Event -> Node -> IO ()

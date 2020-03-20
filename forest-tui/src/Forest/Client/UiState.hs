@@ -9,6 +9,11 @@ module Forest.Client.UiState
   , replaceRootNode
   , moveFocusUp
   , moveFocusDown
+  , moveFocusToParent
+  , moveFocusToPrevSibling
+  , moveFocusToNextSibling
+  , moveFocusToTop
+  , moveFocusToBottom
   , foldAtFocus
   , unfoldAtFocus
   , toggleFoldAtFocus
@@ -145,6 +150,21 @@ moveFocusUp = moveFocus prevNode
 
 moveFocusDown :: UiState n -> UiState n
 moveFocusDown = moveFocus nextNode
+
+moveFocusToPrevSibling :: UiState n -> UiState n
+moveFocusToPrevSibling = moveFocus prevSibling
+
+moveFocusToNextSibling :: UiState n -> UiState n
+moveFocusToNextSibling = moveFocus nextSibling
+
+moveFocusToParent :: UiState n -> UiState n
+moveFocusToParent = moveFocus $ const parent
+
+moveFocusToTop :: UiState n -> UiState n
+moveFocusToTop = moveFocus firstNode
+
+moveFocusToBottom :: UiState n -> UiState n
+moveFocusToBottom = moveFocus lastNode
 
 foldAtFocus :: UiState n -> UiState n
 foldAtFocus s =

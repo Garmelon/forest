@@ -58,7 +58,7 @@
 }
 
 /* Curvy lines */
-.curvy .node:last-child::before {
+.curvy .node-children > *:last-child, .curvy .node-children > *:last-child::before {
     border-bottom-left-radius: 6px;
 }
 

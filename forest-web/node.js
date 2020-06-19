@@ -4,6 +4,12 @@
  * Utility functions
  */
 
+function removeAllChildren(element) {
+    while (element.firstChild) {
+        element.removeChild(element.lastChild);
+    }
+}
+
 // Create a new DOM element.
 // 'classes' can either be a string or a list of strings.
 // A child can either be a string or a DOM element.
@@ -40,71 +46,132 @@ const RelPos = Object.freeze({
 });
 
 class Path {
-    constructor(...nodeIds) {
-        this.elements = nodeIds;
+    constructor(...components) {
+        this._components = components.slice();
+    }
+
+    get components() {
+        return this._components.slice();
     }
 
     get length() {
-        return this.elements.length;
+        return this._components.length;
     }
 
     get last() {
-        return this.elements[this.length - 1];
+        return this._components[this.length - 1];
     }
 
     get parent() {
         if (this.length === 0) return undefined;
-        return new Path(...this.elements.slice(0, this.length - 1));
+        return new Path(...this._components.slice(0, this.length - 1));
     }
 
     append(nodeId) {
-        return new Path(...this.elements.concat([nodeId]));
+        return new Path(...this._components.concat([nodeId]));
     }
 
     concat(otherPath) {
-        return new Path(...this.elements.concat(otherPath.elements));
+        return new Path(...this._components.concat(otherPath._components));
     }
 }
 
 class NodeElements {
     constructor() {
-        this.text = newElement("span", "node-text");
-        this.permissions = newElement("span", "node-permissions");
-        this.children = newElement("div", "node-children");
+        this._elText = newElement("span", "node-text");
+        this._elPermissions = newElement("span", "node-permissions");
+        this._elChildren = newElement("div", "node-children");
 
-        let line = newElement("div", "node-line", this.text, this.permissions);
-        this.main = newElement("div", ["node", "is-folded"], line, this.children);
+        let line = newElement("div", "node-line", this._elText, this._elPermissions);
+        this._elMain = newElement("div", ["node", "is-folded"], line, this._elChildren);
+    }
+
+    get text() {
+        return this._elText.textContent;
+    }
+
+    set text(text) {
+        this._elText.textContent = text;
+    }
+
+    set permissions(perms) {
+        this._elPermissions.textContent = perms.asText;
+    }
+
+    get hasChildren() {
+        return this._elMain.classList.contains("has-children");
+    }
+
+    set hasChildren(flag) {
+        return this._elMain.classList.toggle("has-children", flag);
     }
 
     removeAllChildren() {
-        while (this.children.firstChild) {
-            this.children.removeChild(this.children.lastChild);
-        }
+        removeAllChildren(this._elChildren);
+    }
+
+    addChild(child) {
+        this._elChildren.appendChild(child._elMain);
+    }
+
+    appendTo(element) {
+        element.appendChild(this._elMain);
+    }
+
+    get folded() {
+        return this._elMain.classList.contains("is-folded");
+    }
+
+    set folded(flag) {
+        this._elMain.classList.toggle("is-folded", flag);
+    }
+
+    toggleFolded() {
+        this.folded = !this.folded;
+    }
+
+    get hasCursor() {
+        return this._elMain.classList.contains("has-cursor");
+    }
+
+    set hasCursor(flag) {
+        return this._elMain.classList.toggle("has-cursor", flag);
+    }
+
+    get hasEditor() {
+        return this._elMain.classList.contains("has-editor");
+    }
+
+    set hasEditor(flag) {
+        return this._elMain.classList.toggle("has-editor", flag);
     }
 }
 
-class Node {
-    constructor(nodeJson) {
-        this.elements = undefined;
-
-        this.text = nodeJson.text;
-
-        // Permissions
-        this.edit = nodeJson.edit;
-        this.delete = nodeJson.delete;
-        this.reply = nodeJson.reply;
-        this.act = nodeJson.act;
-
-        this.children = new Map();
-        this.order = nodeJson.order;
-        this.order.forEach(childId => {
-            let childJson = nodeJson.children[childId];
-            let childNode = new Node(childJson);
-            this.children.set(childId, childNode);
-        });
+class NodePermissions {
+    constructor(edit, delete_, reply, act) {
+        this._edit = edit;
+        this._delete = delete_;
+        this._reply = reply;
+        this._act = act;
     }
 
-    getPermissionText() {
+    get edit() {
+        return this._edit;
+    }
+
+    get delete() {
+        return this._delete;
+    }
+
+    get reply() {
+        return this._reply;
+    }
+
+    get act() {
+        return this._act;
+    }
+
+    get asText() {
         return [
             "(",
             this.edit   ? "e" : "-",
@@ -114,23 +181,44 @@ class Node {
             ")"
         ].join("");
     }
+}
 
-    hasChildren() {
-        return this.order.length > 0;
+class Node {
+    constructor(nodeJson) {
+        this._el = undefined;
+
+        this._text = nodeJson.text;
+
+        this._permissions = new NodePermissions(
+            nodeJson.edit,
+            nodeJson.delete,
+            nodeJson.reply,
+            nodeJson.act,
+        );
+
+        this._children = new Map();
+        this._order = nodeJson.order;
+        this._order.forEach(childId => {
+            let childJson = nodeJson.children[childId];
+            let childNode = new Node(childJson);
+            this._children.set(childId, childNode);
+        });
     }
 
-    isFolded() {
-        if (this.elements === undefined) return undefined;
-        return this.elements.main.classList.contains("is-folded");
+    child(childId) {
+        return this._children.get(childId);
     }
 
-    setFolded(folded) {
-        if (this.elements === undefined) return;
-        this.elements.main.classList.toggle("is-folded", folded);
+    get order() {
+        return this._order.slice();
     }
 
-    toggleFolded() {
-        this.setFolded(!this.isFolded());
+    // Only replaces existing children. Does not add new children.
+    replaceChild(childId, newChild) {
+        let oldChild = this.child(childId);
+        if (oldChild === undefined) return;
+        newChild.obtainElements(oldChild);
+        this._children.set(childId, newChild);
     }
 
     // Obtain and update this node's DOM elements. After this call, this.el
@@ -140,49 +228,87 @@ class Node {
     // its children already has existing DOM elements, they are repurposed.
     // Otherwise, new DOM elements are created.
     obtainElements(oldNode) {
-        if (this.elements === undefined) {
+        if (this._el === undefined) {
             // Obtain DOM elements because we don't yet have any
-            if (oldNode === undefined || oldNode.elements === undefined) {
-                this.elements = new NodeElements();
+            if (oldNode === undefined || oldNode._el === undefined) {
+                this._el = new NodeElements();
             } else {
-                this.elements = oldNode.elements;
+                this._el = oldNode._el;
             }
         }
 
-        this.elements.text.textContent = this.text;
-        this.elements.permissions.textContent = this.getPermissionText();
-        this.elements.main.classList.toggle("has-children", this.hasChildren());
+        this._el.text = this._text;
+        this._el.permissions = this._permissions;
+        this._el.hasChildren = this.order.length > 0;
 
-        let oldChildren = (oldNode === undefined) ?
-            new Map() : oldNode.children;
+        this._el.removeAllChildren();
 
-        this.elements.removeAllChildren();
-        this.order.forEach(childId => {
+        let oldChildren = (oldNode === undefined) ? new Map() : oldNode._children;
+        this._order.forEach(childId => {
             let oldChild = oldChildren.get(childId); // May be undefined
-            let child = this.children.get(childId);
+            let child = this._children.get(childId); // Not undefined
             child.obtainElements(oldChild);
-            this.elements.children.appendChild(child.elements.main);
+            this._el.addChild(child._el);
         });
+    }
+
+    // Wrapper functions for this._el
+
+    appendTo(element) {
+        if (this._el === undefined) this.obtainElements();
+        this._el.appendTo(element);
+    }
+
+    get folded() {
+        if (this._el === undefined) return undefined;
+        return this._el.folded;
+    }
+
+    set folded(flag) {
+        if (this._el === undefined) return;
+        this._el.folded = flag;
+    }
+
+    toggleFolded() {
+        if (this._el === undefined) return;
+        this._el.toggleFolded();
+    }
+
+    get hasCursor() {
+        if (this._el === undefined) return undefined;
+        return this._el.hasCursor;
+    }
+
+    set hasCursor(flag) {
+        if (this._el === undefined) return;
+        this._el.hasCursor = flag;
+    }
+
+    get hasEditor() {
+        if (this._el === undefined) return undefined;
+        return this._el.hasEditor;
+    }
+
+    set hasEditor(flag) {
+        if (this._el === undefined) return;
+        this._el.hasEditor = flag;
     }
 }
 
 class NodeTree {
     constructor(rootNodeContainer, rootNode) {
-        this.rootNodeContainer = rootNodeContainer;
-        this.rootNode = rootNode;
+        this._rootNodeContainer = rootNodeContainer;
+        this._rootNode = rootNode;
 
         // Prepare root node container
-        rootNode.obtainElements();
-        while (rootNodeContainer.firstChild) {
-            rootNodeContainer.removeChild(rootNodeContainer.lastChild);
-        }
-        rootNodeContainer.appendChild(rootNode.elements.main);
+        removeAllChildren(this._rootNodeContainer);
+        this._rootNode.appendTo(this._rootNodeContainer);
     }
 
     at(path) {
-        let node = this.rootNode;
-        for (let childId of path.elements) {
-            node = node.children.get(childId);
+        let node = this._rootNode;
+        for (let childId of path.components) {
+            node = node.child(childId);
             if (node === undefined) break;
         }
         return node;
@@ -190,14 +316,11 @@ class NodeTree {
 
     updateAt(path, newNode) {
         if (path.length === 0) {
-            newNode.obtainElements(this.rootNode);
-            this.rootNode = newNode;
+            newNode.obtainElements(this._rootNode);
+            this._rootNode = newNode;
         } else {
             let parentNode = this.at(path.parent);
-            let oldNode = parentNode.children.get(path.last);
-            if (oldNode === undefined) return;
-            newNode.obtainElements(oldNode);
-            parentNode.children.set(path.last, newNode);
+            parentNode.replaceChild(path.last, newNode);
         }
     }
 
@@ -249,7 +372,7 @@ class NodeTree {
         // Get last child of previous path
         while (true) {
             let prevNode = this.at(prevPath);
-            if (prevNode.isFolded()) return prevPath;
+            if (prevNode.folded) return prevPath;
 
             let childPath = this.getLastChild(prevPath);
             if (childPath === undefined) return prevPath;
@@ -260,7 +383,7 @@ class NodeTree {
 
     getNodeBelow(path) {
         let node = this.at(path);
-        if (!node.isFolded()) {
+        if (!node.folded) {
             let childPath = this.getFirstChild(path);
             if (childPath !== undefined) return childPath;
         }
@@ -277,49 +400,49 @@ class NodeTree {
 
 class Cursor {
     constructor(nodeTree) {
-        this.nodeTree = nodeTree;
+        this._nodeTree = nodeTree;
 
-        this.path = new Path();
-        this.relPos = null; // Either null or a RelPos value
+        this._path = new Path();
+        this._relPos = null; // Either null or a RelPos value
 
         this.restore();
     }
 
     getSelectedNode() {
-        return this.nodeTree.at(this.path);
+        return this._nodeTree.at(this._path);
     }
 
     _applyRelPos() {
-        if (this.relPos === null) return;
+        if (this._relPos === null) return;
 
         let newPath;
-        if (this.relPos === RelPos.FIRST_CHILD) {
-            newPath = this.nodeTree.getFirstChild(this.path);
-        } else if (this.relPos === RelPos.NEXT_SIBLING) {
-            newPath = this.nodeTree.getNextSibling(this.path);
+        if (this._relPos === RelPos.FIRST_CHILD) {
+            newPath = this._nodeTree.getFirstChild(this._path);
+        } else if (this._relPos === RelPos.NEXT_SIBLING) {
+            newPath = this._nodeTree.getNextSibling(this._path);
         }
 
         if (newPath !== undefined) {
-            this.path = newPath;
-            this.relPos = null;
+            this._path = newPath;
+            this._relPos = null;
         }
     }
 
     _moveToNearestValidNode() {
         // TODO Maybe select a sibling instead of going to nearest visible parent
         let path = new Path();
-        for (let element of this.path.elements) {
-            let newPath = path.append(element);
-            let newNode = this.nodeTree.at(newPath);
+        for (let component of this._path.components) {
+            let newPath = path.append(component);
+            let newNode = this._nodeTree.at(newPath);
             if (newNode === undefined) break;
-            if (newNode.isFolded()) break;
+            if (newNode.folded) break;
             path = newPath;
         }
-        this.path = path;
+        this._path = path;
     }
 
     _set(visible) {
-        this.getSelectedNode().elements.main.classList.toggle("has-cursor", visible);
+        this.getSelectedNode().hasCursor = visible;
     }
 
     restore() {
@@ -331,56 +454,56 @@ class Cursor {
     moveTo(path) {
         if (path === undefined) return;
         this._set(false);
-        this.path = path;
+        this._path = path;
         this._set(true);
     }
 
     moveUp() {
-        this.moveTo(this.nodeTree.getNodeAbove(this.path));
+        this.moveTo(this._nodeTree.getNodeAbove(this._path));
     }
 
     moveDown() {
-        this.moveTo(this.nodeTree.getNodeBelow(this.path));
+        this.moveTo(this._nodeTree.getNodeBelow(this._path));
     }
 }
 
 class Editor {
     constructor(nodeTree) {
-        this.nodeTree = nodeTree;
+        this._nodeTree = nodeTree;
 
-        this.textarea = newElement("textarea");
-        this.element = newElement("div", "node-editor", this.textarea);
-        this.textarea.addEventListener("input", event => this._updateTextAreaHeight());
+        this._elTextarea = newElement("textarea");
+        this._elTextarea.addEventListener("input", event => this._updateTextAreaHeight());
+        this._elMain = newElement("div", "node-editor", this.textarea);
 
-        this.path = undefined;
-        this.asChild = false;
+        this._path = undefined;
+        this._asChild = false;
     }
 
     _updateTextAreaHeight() {
-        this.textarea.style.height = 0;
-        this.textarea.style.height = this.textarea.scrollHeight + "px";
+        this._elTextarea.style.height = 0;
+        this._elTextarea.style.height = this._elTextarea.scrollHeight + "px";
     }
 
     _getAttachedNode() {
-        if (this.path === undefined) return undefined;
-        return this.nodeTree.at(this.path);
+        if (this._path === undefined) return undefined;
+        return this._nodeTree.at(this._path);
     }
 
     _detach(node, asChild) {
         if (!asChild) {
-            node.elements.main.classList.remove("has-editor");
+            node.hasEditor = false;
         }
 
-        this.element.parentNode.removeChild(this.element);
+        this._elMain.parentNode.removeChild(this._elMain);
     }
 
     _attachTo(node, asChild) {
         if (asChild) {
-            node.elements.children.appendChild(this.element);
-            node.setFolded(false);
+            node._el._elChildren.appendChild(this.element);
+            node.folded = false;
         } else {
-            node.elements.main.classList.add("has-editor");
-            node.elements.main.insertBefore(this.element, node.elements.children);
+            node._el._elMain.classList.add("has-editor");
+            node._el._elMain.insertBefore(this.element, node._el._elChildren);
         }
         this._updateTextAreaHeight();
     }
@@ -461,19 +584,19 @@ class Connection {
     }
 
     sendEdit(path, text) {
-        this._send({type: "edit", path: path.elements, text: text});
+        this._send({type: "edit", path: path.components, text: text});
     }
 
     sendDelete(path) {
-        this._send({type: "delete", path: path.elements});
+        this._send({type: "delete", path: path.components});
     }
 
     sendReply(path, text) {
-        this._send({type: "reply", path: path.elements, text: text});
+        this._send({type: "reply", path: path.components, text: text});
     }
 
     sendAct(path) {
-        this._send({type: "act", path: path.elements});
+        this._send({type: "act", path: path.components});
     }
 }
 
